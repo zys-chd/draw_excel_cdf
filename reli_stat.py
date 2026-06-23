@@ -777,28 +777,25 @@ def add_excel_chart(
         chart.x_axis.numFmt = '0.0###'
         chart.y_axis.numFmt = '0.0###'
 
-        # 对数轴时强制轴交叉在最小值（否则 X 轴会跑到顶部）
-        if x_scale == "log":
-            chart.x_axis.crosses = "min"
-        if y_scale == "log":
-            chart.y_axis.crosses = "min"
+        # 轴交叉在最小值（坐标轴线跟随标签位置）
+        chart.x_axis.crosses = "min"
+        chart.y_axis.crosses = "min"
 
         # 标题 + 图例右侧竖排（不覆盖绘图区）
         chart.title = chart_title or f"{col_name} CDF 分布"
         chart.legend.position = "r"
         chart.legend.overlay = False
-        # 轴标题加前置换行撑开距离
-        chart.x_axis.title = "\n" + (x_label or col_name)
-        chart.y_axis.title = "\n" + (y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))"))
+        chart.x_axis.title = x_label or col_name
+        chart.y_axis.title = y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")
 
-        # 缩小绘图区，给轴标题和图例留空间
+        # 缩小绘图区，四周留白放标题/轴标题/图例
         from openpyxl.chart.layout import Layout, ManualLayout
         chart.plot_area.layout = Layout(
             manualLayout=ManualLayout(
-                xMode="edge", x=0.10,
-                yMode="edge", y=0.12,
-                wMode="factor", w=0.78,    # 右侧留给图例
-                hMode="factor", h=0.75,
+                xMode="edge", x=0.14,      # 左侧留给 Y 轴标题
+                yMode="edge", y=0.15,      # 底部留给 X 轴标题
+                wMode="factor", w=0.65,    # 宽度收缩（右侧留给图例）
+                hMode="factor", h=0.65,    # 高度收缩（顶部留给大标题）
             )
         )
 

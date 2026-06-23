@@ -335,7 +335,7 @@ def test_scale_combos(x_scale: str, y_scale: str):
     """不同 x/y 缩放组合输出独立文件到 Windows。"""
     WIN_FIXTURES.mkdir(parents=True, exist_ok=True)
 
-    out = WIN_FIXTURES / f"output_x{x_scale}_y{y_scale}.xlsx"
+    out = Path(f"/tmp/reli_x{x_scale}_y{y_scale}.xlsx")
     result = process(
         input_path=SAMPLE_XLSX,
         id_col="样品编号",
