@@ -299,5 +299,64 @@ def test_scale_combos(x_scale, y_scale):
     assert out.exists()
 
 
+# ── Y轴 Weibull 用例 ──
+
+@pytest.mark.parametrize("x_scale,y_scale", SCALE_COMBOS)
+def test_weibull_yaxis(x_scale, y_scale):
+    df = _load_sample()
+    out = FIXTURES / f"output_weibull_x{x_scale}_y{y_scale}.xlsx"
+    process(df=df, id_col="样品编号", group_col="批次",
+            data_cols=["Vth"], output_path=out,
+            y_axis="weibull", x_scale=x_scale, y_scale=y_scale,
+            show_limit=False, chart_width=18, chart_height=10)
+    assert out.exists()
+
+
+# ── 图表尺寸用例 ──
+
+CHART_SIZES = [(12, 8), (20, 12), (28, 18)]
+
+
+@pytest.mark.parametrize("w,h", CHART_SIZES)
+def test_chart_sizes(w, h):
+    df = _load_sample()
+    out = FIXTURES / f"output_size_{w}x{h}.xlsx"
+    process(df=df, id_col="样品编号", group_col="批次",
+            data_cols=["Vth"], output_path=out,
+            chart_width=w, chart_height=h, show_limit=False)
+    assert out.exists()
+
+
+# ── Marker 大小用例 ──
+
+@pytest.mark.parametrize("ms", [3, 5, 8, 12])
+def test_marker_sizes(ms):
+    df = _load_sample()
+    out = FIXTURES / f"output_marker_{ms}.xlsx"
+    process(df=df, id_col="样品编号", group_col="批次",
+            data_cols=["Vth"], output_path=out,
+            marker_size=ms, show_limit=False)
+    assert out.exists()
+
+
+# ── 自动/手动轴范围用例 ──
+
+def test_auto_axis_on():
+    df = _load_sample()
+    out = FIXTURES / "output_auto_axis.xlsx"
+    process(df=df, id_col="样品编号", group_col="批次",
+            data_cols=["Vth"], output_path=out, auto_axis=True, show_limit=False)
+    assert out.exists()
+
+
+def test_auto_axis_off():
+    df = _load_sample()
+    out = FIXTURES / "output_manual_axis.xlsx"
+    process(df=df, id_col="样品编号", group_col="批次",
+            data_cols=["Vth"], output_path=out, auto_axis=False,
+            x_min=2.0, y_min=0, y_max=1.1, show_limit=False)
+    assert out.exists()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
