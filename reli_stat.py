@@ -219,6 +219,22 @@ def get_limit(
     return None
 
 
+def _resolve_label(
+    variable: str,
+    label: str | None,
+    label_map: dict[str, str] | None,
+    default: str,
+) -> str:
+    """解析轴标签：map 正则匹配 → label 字符串 → 默认值。"""
+    if label_map:
+        for pattern_str, lbl in label_map.items():
+            if re.search(pattern_str, variable):
+                return lbl
+    if label:
+        return label
+    return default
+
+
 def compute_statistics(
     df: pd.DataFrame,
     id_col: str,
@@ -527,6 +543,8 @@ def add_excel_chart(
     chart_title: str | None = None,
     x_label: str | None = None,
     y_label: str | None = None,
+    x_label_map: dict[str, str] | None = None,
+    y_label_map: dict[str, str] | None = None,
 ) -> Workbook:
     """
     在 Workbook 的每个数据 sheet 中绘制散点图。
@@ -786,18 +804,10 @@ def add_excel_chart(
         chart.title.overlay = False
         chart.legend.position = "r"
         chart.legend.overlay = False
-        chart.x_axis.title = x_label or col_name
-        chart.y_axis.title = y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")
-        chart.x_axis.title.overlay = False
-        chart.y_axis.title.overlay = False
-
-        chart.plot_area.layout = Layout(
-            manualLayout=ManualLayout(
-                xMode="factor", x=0,
-                yMode="factor", y=0,
-                wMode="factor", w=0,
-                hMode="factor", h=0,
-            )
+        chart.x_axis.title = _resolve_label(col_name, x_label, x_label_map, col_name)
+        chart.y_axis.title = _resolve_label(
+            col_name, y_label, y_label_map,
+            "CDF" if y_axis == "CDF" else "ln(-ln(1-MR))"
         )
 
         # 添加图表到 sheet
@@ -853,6 +863,8 @@ def process(
     chart_title: str | None = None,
     x_label: str | None = None,
     y_label: str | None = None,
+    x_label_map: dict[str, str] | None = None,
+    y_label_map: dict[str, str] | None = None,
 ) -> Path:
     """
     一站式处理流水线：算 → 写 → 图 → 保存。
@@ -950,6 +962,8 @@ def process(
         chart_title=chart_title,
         x_label=x_label,
         y_label=y_label,
+        x_label_map=x_label_map,
+        y_label_map=y_label_map,
     )
 
     # 5. 保存

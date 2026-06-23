@@ -430,5 +430,22 @@ def test_add_excel_chart_standalone():
     assert wb["Vth"]._charts[0].title is not None
 
 
+def test_label_map():
+    """x_label_map 正则匹配不同测试项设不同 X 轴标签。"""
+    df = _load_sample()
+    out = FIXTURES / "output_label_map.xlsx"
+    process(df=df, id_col="样品编号", group_col="批次",
+            data_cols=["Vth", "BVdss", "Rds_on"], output_path=out,
+            x_label_map={r"Vth.*": "ΔVth (V)", r"BV.*": "ΔBVdss (V)", r"Rds.*": "ΔRds_on (mΩ)"},
+            show_limit=False, chart_width=18, chart_height=10)
+    assert out.exists()
+
+    import openpyxl
+    wb = openpyxl.load_workbook(out)
+    assert "ΔVth (V)" in str(wb["Vth"]._charts[0].x_axis.title)
+    assert "ΔBVdss (V)" in str(wb["BVdss"]._charts[0].x_axis.title)
+    assert "ΔRds_on (mΩ)" in str(wb["Rds_on"]._charts[0].x_axis.title)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
