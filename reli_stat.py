@@ -291,24 +291,50 @@ def _apply_data_border(ws, start_row: int, end_row: int, col_count: int) -> None
             ws.cell(row=r, column=c).alignment = Alignment(horizontal="center")
 
 
-def write_summary_sheet(wb: Workbook, summary_df: pd.DataFrame) -> None:
-    """将统计汇总 DataFrame 写入 Workbook 的第一个 sheet。"""
+def write_summary_sheet(
+    wb: Workbook,
+    summary_df: pd.DataFrame,
+    raw_df: pd.DataFrame | None = None,
+) -> None:
+    """将统计汇总 + 原始数据 写入 Workbook 的第一个 sheet。"""
     ws = wb.active
     ws.title = "统计汇总"
 
-    # 写表头
+    # ── 统计汇总表 ──
     for col_idx, header in enumerate(SUMMARY_HEADERS, start=1):
         ws.cell(row=1, column=col_idx, value=header)
 
-    # 写数据
     for row_idx, (_, row) in enumerate(summary_df.iterrows(), start=2):
         for col_idx, header in enumerate(SUMMARY_HEADERS, start=1):
             ws.cell(row=row_idx, column=col_idx, value=row[header])
 
-    # 样式
     _apply_header_style(ws, 1, len(SUMMARY_HEADERS))
     if len(summary_df) > 0:
         _apply_data_border(ws, 2, 1 + len(summary_df), len(SUMMARY_HEADERS))
+
+    # ── 原始数据（接在统计汇总后面，中间空一行） ──
+    raw_start_row = 1 + len(summary_df) + 2  # +1 header, +1 spacer
+    if raw_df is not None and not raw_df.empty:
+        raw_headers = list(raw_df.columns)
+        n_raw_cols = len(raw_headers)
+
+        # 空行留分隔
+        # (不用写内容)
+
+        # 写原始数据表头
+        for col_idx, header in enumerate(raw_headers, start=1):
+            ws.cell(row=raw_start_row, column=col_idx, value=header)
+
+        _apply_header_style(ws, raw_start_row, n_raw_cols)
+
+        # 写原始数据
+        for ri, (_, row) in enumerate(raw_df.iterrows(), start=raw_start_row + 1):
+            for ci, header in enumerate(raw_headers, start=1):
+                ws.cell(row=ri, column=ci, value=row[header])
+
+        _apply_data_border(
+            ws, raw_start_row + 1, raw_start_row + len(raw_df), n_raw_cols
+        )
 
     # 自动列宽
     for col_idx in range(1, len(SUMMARY_HEADERS) + 1):
@@ -716,7 +742,7 @@ def process(
 
     # 3. 写 Workbook
     wb = Workbook()
-    write_summary_sheet(wb, summary_df)
+    write_summary_sheet(wb, summary_df, raw_df=df)
     write_data_sheets(wb, long_df, data_cols)
 
     # 4. 给每个数据 sheet 添加散点图
