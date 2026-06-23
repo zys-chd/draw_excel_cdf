@@ -12,7 +12,6 @@ reli-stat — 可靠性统计 Excel 工具
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Any
 
@@ -143,36 +142,21 @@ def weibull_transform(cdf: pd.Series) -> pd.Series:
     return result
 
 
-def match_limit(
-    id_series: pd.Series, limit_map: dict[str, float] | None
-) -> pd.Series:
+def get_limit(
+    variable: str, limit_map: dict[str, float] | None
+) -> float | None:
     """
-    用 id 匹配 limit_map 中的正则表达式。
+    根据测试项名称查 limit_map。
 
-    limit_map: {regex_pattern: limit_value, ...}
-    每个 id 取首个命中的 pattern 对应的值；未命中返回 NaN。
+    limit_map: {"Vth": 3.0, "BVdss": 650, ...}
+    精确匹配 key，未命中返回 None。
 
-    返回 Series，索引同 id_series。
+    为什么这么改：limit 是测试项的规格上限，每个测试项一个固定值，
+    不随样品 ID 变化，所以用测试项名做 key 就够了。
     """
-    import numpy as np
-
     if not limit_map:
-        return pd.Series(np.nan, index=id_series.index, dtype=float)
-
-    # 预编译所有正则
-    compiled = [(re.compile(pat), val) for pat, val in limit_map.items()]
-    results = []
-
-    for item_id in id_series:
-        item_str = str(item_id)
-        matched = np.nan
-        for pattern, value in compiled:
-            if pattern.search(item_str):
-                matched = float(value)
-                break
-        results.append(matched)
-
-    return pd.Series(results, index=id_series.index, dtype=float)
+        return None
+    return limit_map.get(variable, None)
 
 
 def compute_statistics(
@@ -205,8 +189,9 @@ def compute_statistics(
         sub["weibull"] = weibull_transform(sub["mr"])
         sub = sub.drop(columns=["mr"])
 
-        # limit 匹配
-        sub["limit"] = match_limit(sub[id_col], limit_map)
+        # limit：按测试项名称查 limit_map
+        lim = get_limit(col, limit_map)
+        sub["limit"] = lim if lim is not None else None
 
         frames.append(sub)
 
@@ -427,7 +412,7 @@ def add_excel_chart(
     data_cols : list[str]
         数据列名列表。
     limit_map : dict | None
-        {regex: limit_value} 用于绘制 limit 参考线。
+        {"测试项名": limit_value} 用于绘制 limit 参考线。
     x_axis : str
         X 轴数据列: "data"
     y_axis : str

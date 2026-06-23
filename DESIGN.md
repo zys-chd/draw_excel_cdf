@@ -115,8 +115,8 @@ Sheet 2+: 每个数据列一个 sheet（sheet名=数据列名）
 
 - **CDF** = rank / n（简单经验 CDF）
 - **Median Rank**: MR = (i - 0.3) / (n + 0.4)
-- **Weibull**: W = ln(-ln(1 - MR))，MR=0 和 MR=1 时返回 NaN
-- **Limit**: 逐行用 id 匹配 limit_map 中的正则，取首个命中值
+- **limit_map**: `{"测试项名": limit_value}` 每个测试项一个固定 limit 值
+- **Limit**: 按测试项名精确匹配，不随样品 ID 变化
 
 ---
 
