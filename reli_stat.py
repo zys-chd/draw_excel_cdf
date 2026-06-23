@@ -752,11 +752,23 @@ def add_excel_chart(
         chart.x_axis.numFmt = '0.0###'
         chart.y_axis.numFmt = '0.0###'
 
-        # 标题 + 图例放底部
+        # 标题 + 图例放底部（不覆盖绘图区）
         chart.title = chart_title or f"{col_name} CDF 分布"
         chart.legend.position = "b"
+        chart.legend.overlay = False
         chart.x_axis.title = x_label or col_name
         chart.y_axis.title = y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")
+
+        # 缩小绘图区，给轴标题和图例留空间
+        from openpyxl.chart.layout import Layout, ManualLayout
+        chart.plot_area.layout = Layout(
+            manualLayout=ManualLayout(
+                xMode="edge", x=0.10,      # 左侧留 10% 给 Y 轴标题
+                yMode="edge", y=0.12,      # 底部留 12% 给 X 轴标题
+                wMode="factor", w=0.85,    # 宽度 85%
+                hMode="factor", h=0.73,    # 高度 73%（顶部留给标题，底部留给图例）
+            )
+        )
 
         # 添加图表到 sheet
         # 放在数据表右侧
