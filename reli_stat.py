@@ -779,10 +779,13 @@ def add_excel_chart(
 
         # 标题 + 图例右侧竖排
         chart.title = chart_title or f"{col_name} CDF 分布"
+        chart.title.overlay = False
         chart.legend.position = "r"
         chart.legend.overlay = False
         chart.x_axis.title = x_label or col_name
         chart.y_axis.title = y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")
+        chart.x_axis.title.overlay = False
+        chart.y_axis.title.overlay = False
 
         chart.plot_area.layout = Layout(
         manualLayout=ManualLayout(

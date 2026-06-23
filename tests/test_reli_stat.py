@@ -318,9 +318,7 @@ def test_pipeline_no_limit():
     assert len(chart.series) == 3
 
 
-# ── 多尺度组合输出（生成到 Windows 目录） ──
-
-WIN_FIXTURES = Path("/mnt/d/hermes/programming/reli-stat/tests/fixtures")
+# ── 多尺度组合输出 ──
 
 SCALE_COMBOS = [
     ("linear", "linear"),
@@ -333,9 +331,7 @@ SCALE_COMBOS = [
 @pytest.mark.parametrize("x_scale,y_scale", SCALE_COMBOS)
 def test_scale_combos(x_scale: str, y_scale: str):
     """不同 x/y 缩放组合输出独立文件到 Windows。"""
-    WIN_FIXTURES.mkdir(parents=True, exist_ok=True)
-
-    out = WIN_FIXTURES / f"output_x{x_scale}_y{y_scale}.xlsx"
+    out = FIXTURES / f"output_x{x_scale}_y{y_scale}.xlsx"
     result = process(
         input_path=SAMPLE_XLSX,
         id_col="样品编号",
