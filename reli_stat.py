@@ -804,6 +804,10 @@ def add_excel_chart(
         chart.x_axis.numFmt = '0.0###'
         chart.y_axis.numFmt = '0.0###'
 
+        # X 轴交叉在 Y 轴最小值处
+        chart.x_axis.crosses = "min"
+        chart.y_axis.crosses = "min"
+
         # 标题 + 图例右侧竖排
         chart.title = chart_title or f"{col_name} CDF 分布"
         chart.title.overlay = False
