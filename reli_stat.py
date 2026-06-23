@@ -746,6 +746,8 @@ def add_excel_chart(
         chart.y_axis.minorTickMark = "out"
         chart.x_axis.tickLblSkip = 1
         chart.y_axis.tickLblSkip = 1
+        chart.x_axis.tickLblPos = "low"   # X轴标签在底部
+        chart.y_axis.tickLblPos = "low"   # Y轴标签在左侧
         # 数值格式
         chart.x_axis.numFmt = '0.0###'
         chart.y_axis.numFmt = '0.0###'
