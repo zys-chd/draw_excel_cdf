@@ -1,5 +1,5 @@
 """
-reli-stat — 可靠性统计 Excel 工具
+draw_excel_cdf — 可靠性统计 Excel 工具
 
 单文件实现。核心功能:
   - 读取 Excel 测试数据

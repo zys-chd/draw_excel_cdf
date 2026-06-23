@@ -1,4 +1,4 @@
-# reli-stat
+# draw_excel_cdf
 
 可靠性统计 Excel 工具——读取测试数据，按组计算 CDF（Median Rank）和 Weibull 变换，
 输出带统计汇总和散点图的 Excel 文件。
@@ -12,7 +12,7 @@ pip install -r requirements.txt
 ## 使用
 
 ```python
-from reli_stat import process
+from draw_excel_cdf import process
 
 process(
     input_path="data.xlsx",
@@ -29,7 +29,7 @@ process(
 ## 独立图表函数
 
 ```python
-from reli_stat import add_excel_chart
+from draw_excel_cdf import add_excel_chart
 from openpyxl import Workbook
 
 wb = Workbook()

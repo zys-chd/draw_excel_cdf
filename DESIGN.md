@@ -1,4 +1,4 @@
-# reli-stat — 可靠性统计 Excel 工具
+# draw_excel_cdf — 可靠性统计 Excel 工具
 
 > 单文件架构。核心绘图函数独立可复用。读取 Excel 测试数据 →
 > 按组计算 CDF/Weibull → 输出带统计汇总 sheet + 散点图的 Excel。
@@ -8,10 +8,10 @@
 ## 文件结构
 
 ```
-reli-stat/
-├── reli_stat.py          # 唯一源码文件
+draw_excel_cdf/
+├── draw_excel_cdf.py          # 唯一源码文件
 ├── tests/
-│   └── test_reli_stat.py
+│   └── test_draw_excel_cdf.py
 ├── DESIGN.md
 ├── README.md
 ├── requirements.txt
@@ -26,7 +26,7 @@ reli-stat/
 ### 一站式入口
 
 ```python
-from reli_stat import process
+from draw_excel_cdf import process
 
 process(
     input_path="data.xlsx",

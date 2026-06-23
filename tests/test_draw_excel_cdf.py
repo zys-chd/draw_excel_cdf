@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from reli_stat import (
+from draw_excel_cdf import (
     compute_statistics,
     get_limit,
     empirical_cdf,
@@ -434,7 +434,7 @@ def test_limit_map_partial_match():
 
 def test_add_excel_chart_standalone():
     """独立使用 add_excel_chart（不经过 process）。"""
-    from reli_stat import add_excel_chart
+    from draw_excel_cdf import add_excel_chart
     from openpyxl import Workbook
 
     df = pd.DataFrame({"id": ["A1", "A2", "B1", "B2"],
