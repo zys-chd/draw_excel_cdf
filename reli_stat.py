@@ -524,9 +524,7 @@ def write_data_sheets(
 
 def add_excel_chart(
     wb: Workbook,
-    df: pd.DataFrame,
-    id_col: str,
-    group_col: str,
+    long_df: pd.DataFrame,
     data_cols: list[str],
     limit_map: dict[str, float] | None = None,
     x_axis: str = "data",
@@ -549,77 +547,37 @@ def add_excel_chart(
     y_label_map: dict[str, str] | None = None,
 ) -> Workbook:
     """
-    在 Workbook 的每个数据 sheet 中绘制散点图。
+    写入数据 sheet 并绘制散点图（一次完成，不复算）。
 
     Parameters
     ----------
     wb : Workbook
-        已含数据 sheet 的 openpyxl Workbook（由 write_data_sheets 写出）。
-    df : DataFrame
-        原始宽表数据，含 id_col, group_col, data_cols。
-    id_col : str
-        ID 列名。
-    group_col : str
-        分组列名。
+        openpyxl Workbook（通常已含"统计汇总" sheet）。
+    long_df : DataFrame
+        compute_statistics 返回的长表，含 id/group/variable/data/CDF/weibull/limit。
     data_cols : list[str]
         数据列名列表。
-    limit_map : dict | None
-        {r"测试项正则": limit_value} 用于绘制 limit 参考线。
-    x_axis : str
-        X 轴数据列: "data"
-    y_axis : str
-        Y 轴数据列: "CDF" | "weibull"
-    x_scale : str
-        X 轴刻度: "linear" | "log"
-    y_scale : str
-        Y 轴刻度: "linear" | "log"
-    show_limit : bool
-        是否绘制 limit 垂直线。
-    chart_width : float
-        图表宽度 (cm)。
-    chart_height : float
-        图表高度 (cm)。
-    auto_axis : bool
-        True: 自动设置轴范围; False: 不手动干预。
-    marker_size : int
-        散点 marker 大小。
-    chart_title : str | None
-        图表标题。
-    x_label : str | None
-        X 轴标签。
-    y_label : str | None
-        Y 轴标签。
-
-    Returns
-    -------
-    Workbook
-        传入的 wb（已添加图表），方便链式调用。
     """
     import math
 
     import numpy as np
 
-    # --- 先计算长表，获取 CDF/weibull/limit ---
-    long_df = compute_statistics(df, id_col, group_col, data_cols, limit_map)
-
-    # --- 再更新各个 data sheet 的数据（追加图表） ---
-    # 但 write_data_sheets 已经写过了，这里需要重新把 CDF/weibull/limit 写到对应位置
-    # 所以采用: 先清空数据 sheet，重写，再加图
-
     for col_name in data_cols:
-        ws = wb[col_name[:31]]
+        # 创建 sheet（如果不存在）或复用已有
+        sheet_name = col_name[:31]
+        if sheet_name in [s.title for s in wb.worksheets]:
+            ws = wb[sheet_name]
+        else:
+            ws = wb.create_sheet(title=sheet_name)
 
         sub = long_df[long_df["variable"] == col_name].sort_values("data")
         if sub.empty:
             continue
 
-        groups = sub["group"].unique().tolist()
-        n_rows = len(sub)
-        data_end = 1 + n_rows
-
-        # 按组排序后重写 sheet，重新取 groups
+        # 按组排序，重写 sheet 数据
         sub = sub.sort_values(["group", "data"]).reset_index(drop=True)
         groups = sub["group"].unique().tolist()
+        data_end = 1 + len(sub)  # 数据末尾行号
 
         # --- 构建散点图 ---
         chart = ScatterChart()
@@ -835,11 +793,12 @@ def read_file(filepath: str | Path) -> pd.DataFrame:
 
 
 def process(
-    df: pd.DataFrame,
+    data: pd.DataFrame | str | Path,
     id_col: str,
     group_col: str,
     data_cols: list[str],
     output_path: str | Path,
+    sheet_name: str | int = 0,
     limit_map: dict[str, float] | None = None,
     x_axis: str = "data",
     y_axis: str = "CDF",
@@ -897,18 +856,24 @@ def process(
     Path
         输出文件路径。
     """
-    # 1. 计算
+    # 1. 加载数据
+    if isinstance(data, (str, Path)):
+        src = str(data) if isinstance(data, str) else str(data)
+        df = read_file(data) if sheet_name == 0 else pd.read_excel(data, sheet_name=sheet_name)
+    else:
+        df = data
+        src = f"DataFrame ({len(df)} 行 × {len(df.columns)} 列)"
+
+    # 2. 计算
     long_df = compute_statistics(df, id_col, group_col, data_cols, limit_map)
     summary_df = build_summary(df, group_col, data_cols, limit_map=limit_map)
 
     # 3. 写 Workbook
     wb = Workbook()
     write_summary_sheet(
-        wb,
-        summary_df,
-        raw_df=df,
+        wb, summary_df, raw_df=df,
         params={
-            "数据来源": f"DataFrame ({len(df)} 行 × {len(df.columns)} 列)",
+            "数据来源": src,
             "输出文件": str(output_path),
             "ID 列": id_col,
             "分组列": group_col,
@@ -930,14 +895,10 @@ def process(
             "Y 轴标签": f"{y_label or '自动（默认）'}",
         },
     )
-    write_data_sheets(wb, long_df, data_cols)
-
     # 4. 给每个数据 sheet 添加散点图
     add_excel_chart(
         wb=wb,
-        df=df,
-        id_col=id_col,
-        group_col=group_col,
+        long_df=long_df,
         data_cols=data_cols,
         limit_map=limit_map,
         x_axis=x_axis,

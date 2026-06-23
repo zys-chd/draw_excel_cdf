@@ -261,7 +261,7 @@ def test_pipeline_end_to_end():
     df = _load_sample()
 
     output = process(
-        df=df,
+        data=df,
         id_col="样品编号", group_col="批次",
         data_cols=["Vth", "BVdss", "Rds_on"],
         output_path=OUTPUT_XLSX,
@@ -291,7 +291,7 @@ def test_pipeline_end_to_end():
 
 def test_pipeline_no_limit():
     df = _load_sample()
-    process(df=df, id_col="样品编号", group_col="批次", data_cols=["Vth"],
+    process(data=df, id_col="样品编号", group_col="批次", data_cols=["Vth"],
             output_path=OUTPUT_NOLIMIT_XLSX, show_limit=False)
     assert OUTPUT_NOLIMIT_XLSX.exists()
 
@@ -299,7 +299,7 @@ def test_pipeline_no_limit():
 def test_pipeline_defaults():
     df = _load_sample()
     out = FIXTURES / "output_default.xlsx"
-    process(df=df, id_col="样品编号", group_col="批次",
+    process(data=df, id_col="样品编号", group_col="批次",
             data_cols=["Vth", "BVdss", "Rds_on"], output_path=out,
             chart_title="默认参数", x_label="数据", y_label="CDF")
     assert out.exists()
@@ -317,7 +317,7 @@ SCALE_COMBOS = [
 def test_scale_combos(x_scale, y_scale):
     df = _load_sample()
     out = FIXTURES / f"output_x{x_scale}_y{y_scale}.xlsx"
-    process(df=df, id_col="样品编号", group_col="批次",
+    process(data=df, id_col="样品编号", group_col="批次",
             data_cols=["Vth", "BVdss", "Rds_on"], output_path=out,
             limit_map={r"Vth": 3.0, r"BVdss": 660, r"Rds_on": 2.0},
             x_scale=x_scale, y_scale=y_scale, show_limit=True,
@@ -334,7 +334,7 @@ WEIBULL_SCALES = [("linear", "linear"), ("log", "linear")]
 def test_weibull_yaxis(x_scale, y_scale):
     df = _load_sample()
     out = FIXTURES / f"output_weibull_x{x_scale}_y{y_scale}.xlsx"
-    process(df=df, id_col="样品编号", group_col="批次",
+    process(data=df, id_col="样品编号", group_col="批次",
             data_cols=["Vth"], output_path=out,
             y_axis="weibull", x_scale=x_scale, y_scale=y_scale,
             show_limit=False, chart_width=18, chart_height=10)
@@ -350,7 +350,7 @@ CHART_SIZES = [(12, 8), (20, 12), (28, 18)]
 def test_chart_sizes(w, h):
     df = _load_sample()
     out = FIXTURES / f"output_size_{w}x{h}.xlsx"
-    process(df=df, id_col="样品编号", group_col="批次",
+    process(data=df, id_col="样品编号", group_col="批次",
             data_cols=["Vth"], output_path=out,
             chart_width=w, chart_height=h, show_limit=False)
     assert out.exists()
@@ -362,7 +362,7 @@ def test_chart_sizes(w, h):
 def test_marker_sizes(ms):
     df = _load_sample()
     out = FIXTURES / f"output_marker_{ms}.xlsx"
-    process(df=df, id_col="样品编号", group_col="批次",
+    process(data=df, id_col="样品编号", group_col="批次",
             data_cols=["Vth"], output_path=out,
             marker_size=ms, show_limit=False)
     assert out.exists()
@@ -373,7 +373,7 @@ def test_marker_sizes(ms):
 def test_auto_axis_on():
     df = _load_sample()
     out = FIXTURES / "output_auto_axis.xlsx"
-    process(df=df, id_col="样品编号", group_col="批次",
+    process(data=df, id_col="样品编号", group_col="批次",
             data_cols=["Vth"], output_path=out, auto_axis=True, show_limit=False)
     assert out.exists()
 
@@ -381,7 +381,7 @@ def test_auto_axis_on():
 def test_auto_axis_off():
     df = _load_sample()
     out = FIXTURES / "output_manual_axis.xlsx"
-    process(df=df, id_col="样品编号", group_col="批次",
+    process(data=df, id_col="样品编号", group_col="批次",
             data_cols=["Vth"], output_path=out, auto_axis=False,
             x_min=2.0, x_max=3.0, y_min=0, y_max=1.1, show_limit=True)
     assert out.exists()
@@ -400,7 +400,7 @@ def test_single_group():
     df = pd.DataFrame({"id": ["A1", "A2", "A3"], "group": ["G1", "G1", "G1"],
                        "Vth": [2.0, 2.5, 3.0]})
     out = FIXTURES / "output_single_group.xlsx"
-    process(df=df, id_col="id", group_col="group", data_cols=["Vth"],
+    process(data=df, id_col="id", group_col="group", data_cols=["Vth"],
             output_path=out, show_limit=False)
     assert out.exists()
 
@@ -411,7 +411,7 @@ def test_nan_in_data():
                        "group": ["A", "A", "B", "B"],
                        "Vth": [2.0, None, 2.5, 3.0]})
     out = FIXTURES / "output_nan_data.xlsx"
-    process(df=df, id_col="id", group_col="group", data_cols=["Vth"],
+    process(data=df, id_col="id", group_col="group", data_cols=["Vth"],
             output_path=out, show_limit=False)
     assert out.exists()
 
@@ -420,7 +420,7 @@ def test_limit_map_partial_match():
     """limit_map 只匹配部分列。"""
     df = _load_sample()
     out = FIXTURES / "output_partial_limit.xlsx"
-    process(df=df, id_col="样品编号", group_col="批次",
+    process(data=df, id_col="样品编号", group_col="批次",
             data_cols=["Vth", "BVdss", "Rds_on"], output_path=out,
             limit_map={"Vth": 3.0})  # 只给 Vth 设 limit
     assert out.exists()
@@ -440,16 +440,9 @@ def test_add_excel_chart_standalone():
     df = pd.DataFrame({"id": ["A1", "A2", "B1", "B2"],
                        "group": ["G1", "G1", "G2", "G2"],
                        "Vth": [1.0, 2.0, 1.5, 2.5]})
+    long = compute_statistics(df, "id", "group", ["Vth"])
     wb = Workbook()
-    ws = wb.active
-    ws.title = "Vth"
-    ws.append(["id", "group", "数据", "CDF", "weibull", "limit"])
-    ws.append(["A1", "G1", 1.0, 0.25, None, None])
-    ws.append(["A2", "G1", 2.0, 0.75, None, None])
-    ws.append(["B1", "G2", 1.5, 0.25, None, None])
-    ws.append(["B2", "G2", 2.5, 0.75, None, None])
-
-    wb = add_excel_chart(wb, df, "id", "group", ["Vth"],
+    wb = add_excel_chart(wb, long, ["Vth"],
                          x_label="Vth (V)", y_label="CDF",
                          chart_width=15, chart_height=9)
     assert len(wb["Vth"]._charts) == 1
@@ -460,7 +453,7 @@ def test_label_map():
     """x_label_map 正则匹配不同测试项设不同 X 轴标签。"""
     df = _load_sample()
     out = FIXTURES / "output_label_map.xlsx"
-    process(df=df, id_col="样品编号", group_col="批次",
+    process(data=df, id_col="样品编号", group_col="批次",
             data_cols=["Vth", "BVdss", "Rds_on"], output_path=out,
             x_label_map={r"Vth.*": "ΔVth (V)", r"BV.*": "ΔBVdss (V)", r"Rds.*": "ΔRds_on (mΩ)"},
             show_limit=False, chart_width=18, chart_height=10)
@@ -481,7 +474,7 @@ def test_cdf_values_correct():
         "Vth": [1.0, 3.0, 2.0, 10.0, 20.0],
     })
     out = FIXTURES / "output_cdf_check.xlsx"
-    process(df=df, id_col="id", group_col="group", data_cols=["Vth"],
+    process(data=df, id_col="id", group_col="group", data_cols=["Vth"],
             output_path=out, show_limit=False)
 
     import openpyxl
