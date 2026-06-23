@@ -80,6 +80,7 @@ SUMMARY_HEADERS = [
     "Weibull β",
     "Weibull η",
     "拟合 R²",
+    "Limit",
     "limit处 CDF(%)",
 ]
 
@@ -300,9 +301,7 @@ def build_summary(
             cdf_at_limit = None
             if beta is not None and eta is not None and limit_val is not None:
                 try:
-                    cdf_at_limit = round(
-                        (1 - np.exp(-((limit_val / eta) ** beta))) * 100, 2
-                    )
+                    cdf_at_limit = (1 - np.exp(-((limit_val / eta) ** beta))) * 100
                 except (OverflowError, ZeroDivisionError):
                     cdf_at_limit = None
 
@@ -327,6 +326,7 @@ def build_summary(
                     "Weibull β": beta,
                     "Weibull η": eta,
                     "拟合 R²": r2,
+                    "Limit": limit_val,
                     "limit处 CDF(%)": cdf_at_limit,
                 }
             )
@@ -411,6 +411,10 @@ def write_summary_sheet(
 
     _apply_header_style(ws, hdr_row, len(SUMMARY_HEADERS))
     if len(summary_df) > 0:
+        # limit处 CDF(%) 列用科学计数法
+        cdf_col = len(SUMMARY_HEADERS)  # 最后一列
+        for row_idx in range(hdr_row + 1, hdr_row + 1 + len(summary_df)):
+            ws.cell(row=row_idx, column=cdf_col).number_format = '0.00E+00'
         _apply_data_border(
             ws, hdr_row + 1, hdr_row + len(summary_df), len(SUMMARY_HEADERS)
         )

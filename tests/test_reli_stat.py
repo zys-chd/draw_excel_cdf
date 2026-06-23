@@ -258,8 +258,9 @@ def test_pipeline_end_to_end():
     stat_header_row = 23
     assert ws.cell(stat_header_row, 1).value == "测试项"
     assert ws.cell(stat_header_row + 1, 1).value == "Vth"
-    # 15 列（含 Weibull β/η/R²/limit处 CDF）
-    assert ws.cell(stat_header_row, 15).value == "limit处 CDF(%)"
+    # 16 列（含 Limit / limit处 CDF）
+    assert ws.cell(stat_header_row, 15).value == "Limit"
+    assert ws.cell(stat_header_row, 16).value == "limit处 CDF(%)"
     # 分区标题
     assert ws.cell(22, 1).value == "统计汇总"  # 合并单元格后该值在第一个格子
     # 原始数据：22(标题) + 1(统计头) + 9(数据) + 1(空) + 1(原始标题) + 1 = 35
