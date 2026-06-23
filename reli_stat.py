@@ -738,19 +738,23 @@ def add_excel_chart(
                 chart.y_axis.scaling.min = round(_y_min - padding, 4)
                 chart.y_axis.scaling.max = round(_y_max + padding, 4)
 
-        # 网格线 + 次级刻度
+        # 网格线 + 次级刻度 + 轴显示
         _add_gridlines(chart)
+        chart.x_axis.delete = False
+        chart.y_axis.delete = False
         chart.x_axis.minorTickMark = "out"
         chart.y_axis.minorTickMark = "out"
+        chart.x_axis.tickLblSkip = 1
+        chart.y_axis.tickLblSkip = 1
         # 数值格式
         chart.x_axis.numFmt = '0.0###'
         chart.y_axis.numFmt = '0.0###'
 
-        # 标题 + 图例放底部 + 轴标题间距（末尾换行撑开）
+        # 标题 + 图例放底部
         chart.title = chart_title or f"{col_name} CDF 分布"
         chart.legend.position = "b"
-        chart.x_axis.title = (x_label or col_name) + "\n"
-        chart.y_axis.title = (y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")) + "\n"
+        chart.x_axis.title = x_label or col_name
+        chart.y_axis.title = y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")
 
         # 添加图表到 sheet
         # 放在数据表右侧
