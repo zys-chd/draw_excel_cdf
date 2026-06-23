@@ -115,8 +115,8 @@ Sheet 2+: 每个数据列一个 sheet（sheet名=数据列名）
 
 - **CDF** = rank / n（简单经验 CDF）
 - **Median Rank**: MR = (i - 0.3) / (n + 0.4)
-- **limit_map**: `{"测试项名": limit_value}` 每个测试项一个固定 limit 值
-- **Limit**: 按测试项名精确匹配，不随样品 ID 变化
+- **limit_map**: `{r"测试项正则": limit_value}` 正则匹配测试项名，首个命中取值
+- **Limit**: 按测试项名做正则匹配，同一测试项所有行 limit 一致
 
 ---
 

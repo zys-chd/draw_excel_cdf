@@ -12,6 +12,7 @@ reli-stat — 可靠性统计 Excel 工具
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -146,17 +147,17 @@ def get_limit(
     variable: str, limit_map: dict[str, float] | None
 ) -> float | None:
     """
-    根据测试项名称查 limit_map。
+    用正则匹配测试项名称查 limit_map。
 
-    limit_map: {"Vth": 3.0, "BVdss": 650, ...}
-    精确匹配 key，未命中返回 None。
-
-    为什么这么改：limit 是测试项的规格上限，每个测试项一个固定值，
-    不随样品 ID 变化，所以用测试项名做 key 就够了。
+    limit_map: {r"Vth.*": 3.0, r"BVdss": 650, ...}
+    key 是正则表达式，匹配 variable 名，首个命中返回对应值；未命中返回 None。
     """
     if not limit_map:
         return None
-    return limit_map.get(variable, None)
+    for pattern_str, value in limit_map.items():
+        if re.search(pattern_str, variable):
+            return float(value)
+    return None
 
 
 def compute_statistics(
@@ -412,7 +413,7 @@ def add_excel_chart(
     data_cols : list[str]
         数据列名列表。
     limit_map : dict | None
-        {"测试项名": limit_value} 用于绘制 limit 参考线。
+        {r"测试项正则": limit_value} 用于绘制 limit 参考线。
     x_axis : str
         X 轴数据列: "data"
     y_axis : str

@@ -92,6 +92,17 @@ def test_get_limit_hit():
     assert get_limit("Vth", {"Vth": 3.0, "BVdss": 650}) == 3.0
 
 
+def test_get_limit_regex():
+    """正则匹配：r\"Vth.*\" 可匹配 Vth_25C, Vth_150C 等变体。"""
+    assert get_limit("Vth_25C", {r"Vth.*": 3.0}) == 3.0
+    assert get_limit("Vth_150C", {r"Vth.*": 3.0}) == 3.0
+
+
+def test_get_limit_first_match():
+    """多个 pattern 命中时取第一个。"""
+    assert get_limit("Vth_hot", {r"Vth": 3.0, r"Vth.*": 2.5}) == 3.0
+
+
 def test_get_limit_miss():
     """未命中返回 None。"""
     assert get_limit("Rds_on", {"Vth": 3.0}) is None
