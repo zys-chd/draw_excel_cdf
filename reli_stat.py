@@ -698,6 +698,9 @@ def add_excel_chart(
             series.marker.symbol = symbol
             series.marker.size = marker_size
             series.marker.graphicalProperties.solidFill = color
+            # 描边与外圈同色
+            series.marker.graphicalProperties.line.solidFill = color
+            series.marker.graphicalProperties.line.width = 12700  # ~1pt
             series.graphicalProperties.line.noFill = True  # 无连线
 
             chart.series.append(series)
@@ -811,6 +814,8 @@ def add_excel_chart(
             col_name, y_label, y_label_map,
             "CDF" if y_axis == "CDF" else "ln(-ln(1-MR))"
         )
+        chart.x_axis.title.overlay = False
+        chart.y_axis.title.overlay = False
 
         # 添加图表到 sheet
         # 放在数据表右侧
