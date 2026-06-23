@@ -216,8 +216,8 @@ def test_build_summary():
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE_XLSX = FIXTURES / "sample.xlsx"
-OUTPUT_XLSX = Path("/tmp/reli_test_output.xlsx")
-OUTPUT_NOLIMIT_XLSX = Path("/tmp/reli_test_output_nolimit.xlsx")
+OUTPUT_XLSX = FIXTURES / "output.xlsx"
+OUTPUT_NOLIMIT_XLSX = FIXTURES / "output_nolimit.xlsx"
 
 
 def test_pipeline_end_to_end():
@@ -335,7 +335,7 @@ def test_scale_combos(x_scale: str, y_scale: str):
     """不同 x/y 缩放组合输出独立文件到 Windows。"""
     WIN_FIXTURES.mkdir(parents=True, exist_ok=True)
 
-    out = Path(f"/tmp/reli_x{x_scale}_y{y_scale}.xlsx")
+    out = WIN_FIXTURES / f"output_x{x_scale}_y{y_scale}.xlsx"
     result = process(
         input_path=SAMPLE_XLSX,
         id_col="样品编号",

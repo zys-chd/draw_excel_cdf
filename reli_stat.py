@@ -31,7 +31,7 @@ from openpyxl.styles import (
     numbers,
 )
 from openpyxl.utils import get_column_letter
-
+from openpyxl.chart.layout import Layout, ManualLayout
 # ──────────────────────────────────────────────
 # 常量
 # ──────────────────────────────────────────────
@@ -777,14 +777,6 @@ def add_excel_chart(
         chart.x_axis.numFmt = '0.0###'
         chart.y_axis.numFmt = '0.0###'
 
-        # 强制轴交叉在数据最小值
-        chart.x_axis.crosses = "min"
-        chart.y_axis.crosses = "min"
-        # 显式设置交叉值
-        if not sub.empty:
-            chart.x_axis.crossesAt = float(sub[y_axis].min())
-            chart.y_axis.crossesAt = float(sub[x_axis].min())
-
         # 标题 + 图例右侧竖排
         chart.title = chart_title or f"{col_name} CDF 分布"
         chart.legend.position = "r"
@@ -792,16 +784,14 @@ def add_excel_chart(
         chart.x_axis.title = x_label or col_name
         chart.y_axis.title = y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")
 
-        # 大幅缩小绘图区，四周留白：上30%放大标题，左18%放Y标题，右20%放图例，下18%放X标题
-        from openpyxl.chart.layout import Layout, ManualLayout
         chart.plot_area.layout = Layout(
-            manualLayout=ManualLayout(
-                xMode="factor", x=0.20,
-                yMode="factor", y=0.20,
-                wMode="factor", w=0.58,
-                hMode="factor", h=0.55,
-            )
+        manualLayout=ManualLayout(
+            xMode="factor", x=0.12,
+            yMode="factor", y=0.15,
+            wMode="factor", w=0.72,
+            hMode="factor", h=0.70,
         )
+    )
 
         # 添加图表到 sheet
         # 放在数据表右侧
