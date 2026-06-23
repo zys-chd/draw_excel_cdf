@@ -3,6 +3,7 @@
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -16,20 +17,45 @@ from reli_stat import (
     weibull_transform,
     build_summary,
     process,
-    read_file,
     fit_weibull,
+    read_file,
 )
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
-SAMPLE_XLSX = FIXTURES / "sample.xlsx"
 OUTPUT_XLSX = FIXTURES / "output.xlsx"
 OUTPUT_NOLIMIT_XLSX = FIXTURES / "output_nolimit.xlsx"
 
+# ── 动态样本数据生成 ──
 
-def _load_sample():
-    """加载测试数据。"""
-    return read_file(SAMPLE_XLSX)
+PARAMS_SPEC = {"Vth": (2.5, 0.2), "BVdss": (650, 10), "Rds_on": (1.8, 0.1)}
+
+
+def _make_sample(n_groups=4, seed=42) -> tuple[pd.DataFrame, Path]:
+    """生成随机样本数据并写入 sample.xlsx，返回 (df, path)。"""
+    rng = np.random.default_rng(seed)
+    # 随机 3~5 组，每组 5~15 条
+    n_groups = rng.integers(3, 6) if n_groups is None else n_groups
+    rows = []
+    for gi in range(n_groups):
+        grp_name = chr(65 + gi) + "组"  # A组, B组, C组, ...
+        n = int(rng.integers(5, 16))
+        for i in range(1, n + 1):
+            row = {"样品编号": f"{grp_name}-{i:02d}", "批次": grp_name}
+            for col, (mu, sigma) in PARAMS_SPEC.items():
+                row[col] = round(float(rng.normal(mu, sigma)), 3)
+            rows.append(row)
+
+    df = pd.DataFrame(rows)
+    out_path = FIXTURES / "sample.xlsx"
+    FIXTURES.mkdir(parents=True, exist_ok=True)
+    df.to_excel(out_path, index=False)
+    return df, out_path
+
+
+def _load_sample(seed=42) -> pd.DataFrame:
+    df, _ = _make_sample(n_groups=None, seed=seed)
+    return df
 
 
 # ── empirical_cdf ──────────────────────────────
