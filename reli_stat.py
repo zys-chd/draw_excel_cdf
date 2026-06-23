@@ -822,7 +822,7 @@ def read_file(filepath: str | Path) -> pd.DataFrame:
 
 
 def process(
-    input_path: str | Path,
+    df: pd.DataFrame,
     id_col: str,
     group_col: str,
     data_cols: list[str],
@@ -846,12 +846,12 @@ def process(
     y_label: str | None = None,
 ) -> Path:
     """
-    一站式处理流水线：读 → 算 → 写 → 图 → 保存。
+    一站式处理流水线：算 → 写 → 图 → 保存。
 
     Parameters
     ----------
-    input_path : str | Path
-        输入 Excel 路径 (.xlsx)。
+    df : DataFrame
+        输入数据。需含 id_col, group_col, data_cols 列。
     id_col : str
         样品 ID 列名。
     group_col : str
@@ -882,10 +882,7 @@ def process(
     Path
         输出文件路径。
     """
-    # 1. 读取
-    df = read_file(input_path)
-
-    # 2. 计算
+    # 1. 计算
     long_df = compute_statistics(df, id_col, group_col, data_cols, limit_map)
     summary_df = build_summary(df, group_col, data_cols, limit_map=limit_map)
 
@@ -896,7 +893,7 @@ def process(
         summary_df,
         raw_df=df,
         params={
-            "输入文件": str(input_path),
+            "数据来源": f"DataFrame ({len(df)} 行 × {len(df.columns)} 列)",
             "输出文件": str(output_path),
             "ID 列": id_col,
             "分组列": group_col,
