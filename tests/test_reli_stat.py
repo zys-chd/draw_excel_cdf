@@ -216,8 +216,8 @@ def test_build_summary():
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE_XLSX = FIXTURES / "sample.xlsx"
-OUTPUT_XLSX = FIXTURES / "output.xlsx"
-OUTPUT_NOLIMIT_XLSX = FIXTURES / "output_nolimit.xlsx"
+OUTPUT_XLSX = Path("/tmp/reli_test_output.xlsx")
+OUTPUT_NOLIMIT_XLSX = Path("/tmp/reli_test_output_nolimit.xlsx")
 
 
 def test_pipeline_end_to_end():
@@ -254,14 +254,17 @@ def test_pipeline_end_to_end():
     ws = wb["统计汇总"]
     # 参数区应在顶部
     assert ws.cell(1, 1).value == "输入文件"
-    # 10 params + 空行 = 行11 → 统计表头行12
-    stat_header_row = 12
+    # 10 params + 空行 + 标题"统计汇总" = 12 → 统计表头行13
+    stat_header_row = 13
     assert ws.cell(stat_header_row, 1).value == "测试项"
     assert ws.cell(stat_header_row + 1, 1).value == "Vth"
     # 14 列（含 Weibull β/η/R²）
     assert ws.cell(stat_header_row, 14).value == "拟合 R²"
-    # 原始数据：参数(10) + 空(1) + 统计头(1) + 统计数据(9) + 空(1) = 22 → 行23
-    assert ws.cell(23, 1).value == "样品编号"
+    # 分区标题
+    assert ws.cell(12, 1).value == "统计汇总"  # 合并单元格后该值在第一个格子
+    # 原始数据：12(标题) + 1(空) + 1(数据标题) + 1(原始表头) = 25
+    raw_hdr_row = 25
+    assert ws.cell(raw_hdr_row, 1).value == "样品编号"
 
     # --- 验证数据 sheet 有图表和数据 ---
     for sheet_name in ["Vth", "BVdss", "Rds_on"]:

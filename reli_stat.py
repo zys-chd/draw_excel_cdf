@@ -373,6 +373,17 @@ def write_summary_sheet(
 
         summary_start_row = len(param_items) + 2  # 空一行
 
+    # ── 统计汇总分区标题（合并居中） ──
+    SECTION_TITLE_FONT = Font(name="微软雅黑", bold=True, size=12, color="4472C4")
+    ws.merge_cells(
+        start_row=summary_start_row, start_column=1,
+        end_row=summary_start_row, end_column=len(SUMMARY_HEADERS),
+    )
+    cell = ws.cell(row=summary_start_row, column=1, value="统计汇总")
+    cell.font = SECTION_TITLE_FONT
+    cell.alignment = Alignment(horizontal="center", vertical="center")
+    summary_start_row += 1  # 标题占一行
+
     # ── 统计汇总表 ──
     hdr_row = summary_start_row
     for col_idx, header in enumerate(SUMMARY_HEADERS, start=1):
@@ -389,10 +400,21 @@ def write_summary_sheet(
         )
 
     # ── 原始数据（接在统计汇总后面，中间空一行） ──
-    raw_start_row = hdr_row + len(summary_df) + 2  # +1 header, +1 spacer
+    raw_title_row = hdr_row + len(summary_df) + 2  # +1 统计表头, +1 spacer
+    raw_start_row = raw_title_row + 1  # 标题下面才是表头
+
     if raw_df is not None and not raw_df.empty:
         raw_headers = list(raw_df.columns)
         n_raw_cols = len(raw_headers)
+
+        # 原始数据分区标题（合并居中）
+        ws.merge_cells(
+            start_row=raw_title_row, start_column=1,
+            end_row=raw_title_row, end_column=n_raw_cols,
+        )
+        cell = ws.cell(row=raw_title_row, column=1, value="原始数据")
+        cell.font = SECTION_TITLE_FONT
+        cell.alignment = Alignment(horizontal="center", vertical="center")
 
         for col_idx, header in enumerate(raw_headers, start=1):
             ws.cell(row=raw_start_row, column=col_idx, value=header)
@@ -477,6 +499,10 @@ def add_excel_chart(
     chart_width: float = 20,
     chart_height: float = 12,
     auto_axis: bool = True,
+    x_min: float | None = None,
+    x_max: float | None = None,
+    y_min: float | None = None,
+    y_max: float | None = None,
     marker_size: int = 5,
     chart_title: str | None = None,
     x_label: str | None = None,
@@ -556,15 +582,6 @@ def add_excel_chart(
         chart = ScatterChart()
         chart.width = chart_width
         chart.height = chart_height
-
-        # 标题和轴标签（未传时用默认值）
-        chart.title = chart_title or f"{col_name} CDF 分布"
-        chart.x_axis.title = x_label or col_name
-        chart.y_axis.title = y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")
-        chart.x_axis.tickLblPos = "low"
-        chart.y_axis.tickLblPos = "low"
-        chart.x_axis.delete = False
-        chart.y_axis.delete = False
 
         # 坐标轴缩放类型
         if x_scale == "log":
@@ -696,29 +713,44 @@ def add_excel_chart(
                 data_end += 2  # 更新数据结束位置
 
         # --- 轴范围 ---
-        if not auto_axis and not sub.empty:
-            x_vals = sub[x_axis].dropna()
-            y_vals = sub[y_axis].dropna()
+        if not auto_axis:
+            # 优先使用用户指定的强制范围，否则从数据取
+            _x_min = x_min if x_min is not None else (
+                float(sub[x_axis].dropna().min()) if not sub[x_axis].dropna().empty else None
+            )
+            _x_max = x_max if x_max is not None else (
+                float(sub[x_axis].dropna().max()) if not sub[x_axis].dropna().empty else None
+            )
+            _y_min = y_min if y_min is not None else (
+                float(sub[y_axis].dropna().min()) if not sub[y_axis].dropna().empty else None
+            )
+            _y_max = y_max if y_max is not None else (
+                float(sub[y_axis].dropna().max()) if not sub[y_axis].dropna().empty else None
+            )
 
-            if not x_vals.empty:
-                x_min = float(x_vals.min())
-                x_max = float(x_vals.max())
-                padding = (x_max - x_min) * 0.05 if x_max > x_min else 1.0
-                chart.x_axis.scaling.min = round(x_min - padding, 4)
-                chart.x_axis.scaling.max = round(x_max + padding, 4)
+            if _x_min is not None and _x_max is not None:
+                padding = (_x_max - _x_min) * 0.05 if _x_max > _x_min else 1.0
+                chart.x_axis.scaling.min = round(_x_min - padding, 4)
+                chart.x_axis.scaling.max = round(_x_max + padding, 4)
 
-            if not y_vals.empty:
-                y_min = float(y_vals.min())
-                y_max = float(y_vals.max())
-                padding = (y_max - y_min) * 0.05 if y_max > y_min else 0.1
-                chart.y_axis.scaling.min = round(y_min - padding, 4)
-                chart.y_axis.scaling.max = round(y_max + padding, 4)
+            if _y_min is not None and _y_max is not None:
+                padding = (_y_max - _y_min) * 0.05 if _y_max > _y_min else 0.1
+                chart.y_axis.scaling.min = round(_y_min - padding, 4)
+                chart.y_axis.scaling.max = round(_y_max + padding, 4)
 
-        # 网格线（浅灰）
+        # 网格线 + 次级刻度
         _add_gridlines(chart)
-        # 数值格式：一般小数点后 2-4 位即可
+        chart.x_axis.minorTickMark = "out"
+        chart.y_axis.minorTickMark = "out"
+        # 数值格式
         chart.x_axis.numFmt = '0.0###'
         chart.y_axis.numFmt = '0.0###'
+
+        # 标题 + 图例放底部 + 轴标题间距（末尾换行撑开）
+        chart.title = chart_title or f"{col_name} CDF 分布"
+        chart.legend.position = "b"
+        chart.x_axis.title = (x_label or col_name) + "\n"
+        chart.y_axis.title = (y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")) + "\n"
 
         # 添加图表到 sheet
         # 放在数据表右侧
@@ -765,6 +797,10 @@ def process(
     chart_width: float = 20,
     chart_height: float = 12,
     auto_axis: bool = True,
+    x_min: float | None = None,
+    x_max: float | None = None,
+    y_min: float | None = None,
+    y_max: float | None = None,
     marker_size: int = 5,
     chart_title: str | None = None,
     x_label: str | None = None,
@@ -851,6 +887,10 @@ def process(
         chart_width=chart_width,
         chart_height=chart_height,
         auto_axis=auto_axis,
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
         marker_size=marker_size,
         chart_title=chart_title,
         x_label=x_label,
