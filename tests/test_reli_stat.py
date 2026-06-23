@@ -17,6 +17,7 @@ from reli_stat import (
     build_summary,
     process,
     read_file,
+    fit_weibull,
 )
 
 
@@ -170,6 +171,60 @@ def test_build_summary():
     assert len(summary) == 2
     assert "Weibull β" in summary.columns
     assert summary.iloc[0]["拟合 R²"] is not None
+
+
+# ── fit_weibull ────────────────────────────────
+
+
+def test_fit_weibull_perfect():
+    """用已知 Weibull 分布生成数据，拟合应接近真实值。"""
+    import numpy as np
+
+    np.random.seed(0)
+    eta_true, beta_true = 100.0, 2.5
+    # 生成 Weibull 分布数据
+    data = pd.Series(eta_true * (-np.log(1 - np.random.uniform(0.01, 0.99, 50))) ** (1 / beta_true))
+    mr = median_rank(data)
+
+    beta, eta, r2 = fit_weibull(data, mr)
+
+    # beta 恢复偏差应在 30% 以内
+    assert abs(beta - beta_true) / beta_true < 0.3
+    # eta 恢复偏差也合理
+    assert abs(eta - eta_true) / eta_true < 0.5
+    assert r2 > 0.9  # 拟合度很高
+
+
+def test_fit_weibull_few_points():
+    """只有 2 个有效点 → 返回 None。"""
+    import numpy as np
+    data = pd.Series([10.0, 20.0])
+    mr = pd.Series([0.3, 0.7])
+    assert fit_weibull(data, mr) is None
+
+
+def test_fit_weibull_with_nans():
+    """数据中含 0 值时，这些点被跳过，仍能拟合。"""
+    import numpy as np
+    data = pd.Series([0.0, 10.0, 20.0, 30.0, 40.0])  # 0 值会被跳过
+    mr = pd.Series([0.1, 0.25, 0.5, 0.75, 0.9])
+    result = fit_weibull(data, mr)
+    assert result is not None
+    beta, eta, r2 = result
+    assert beta > 0
+    assert eta > 0
+    assert 0 <= r2 <= 1
+
+
+def test_fit_weibull_r2_range():
+    """R² 应在 [0, 1] 范围内。"""
+    import numpy as np
+    data = pd.Series(np.random.uniform(10, 100, 30))
+    mr = median_rank(data)
+    result = fit_weibull(data, mr)
+    assert result is not None
+    _, _, r2 = result
+    assert 0 <= r2 <= 1
 
 
 # ── 集成测试 ───────────────────────────────────
