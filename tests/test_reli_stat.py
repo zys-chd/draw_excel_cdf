@@ -299,9 +299,12 @@ def test_scale_combos(x_scale, y_scale):
     assert out.exists()
 
 
-# ── Y轴 Weibull 用例 ──
+# ── Y轴 Weibull 用例（仅 linear Y，log Y 无意义） ──
 
-@pytest.mark.parametrize("x_scale,y_scale", SCALE_COMBOS)
+WEIBULL_SCALES = [("linear", "linear"), ("log", "linear")]
+
+
+@pytest.mark.parametrize("x_scale,y_scale", WEIBULL_SCALES)
 def test_weibull_yaxis(x_scale, y_scale):
     df = _load_sample()
     out = FIXTURES / f"output_weibull_x{x_scale}_y{y_scale}.xlsx"
@@ -356,6 +359,75 @@ def test_auto_axis_off():
             data_cols=["Vth"], output_path=out, auto_axis=False,
             x_min=2.0, x_max=3.0, y_min=0, y_max=1.1, show_limit=True)
     assert out.exists()
+
+
+# ── 边界/补漏用例 ──
+
+def test_read_file_invalid():
+    """不存在的文件应抛出异常。"""
+    with pytest.raises((FileNotFoundError, ValueError)):
+        read_file(FIXTURES / "nonexistent.xlsx")
+
+
+def test_single_group():
+    """单组数据正常运行。"""
+    df = pd.DataFrame({"id": ["A1", "A2", "A3"], "group": ["G1", "G1", "G1"],
+                       "Vth": [2.0, 2.5, 3.0]})
+    out = FIXTURES / "output_single_group.xlsx"
+    process(df=df, id_col="id", group_col="group", data_cols=["Vth"],
+            output_path=out, show_limit=False)
+    assert out.exists()
+
+
+def test_nan_in_data():
+    """数据含 NaN 时不崩溃。"""
+    df = pd.DataFrame({"id": ["X1", "X2", "X3", "X4"],
+                       "group": ["A", "A", "B", "B"],
+                       "Vth": [2.0, None, 2.5, 3.0]})
+    out = FIXTURES / "output_nan_data.xlsx"
+    process(df=df, id_col="id", group_col="group", data_cols=["Vth"],
+            output_path=out, show_limit=False)
+    assert out.exists()
+
+
+def test_limit_map_partial_match():
+    """limit_map 只匹配部分列。"""
+    df = _load_sample()
+    out = FIXTURES / "output_partial_limit.xlsx"
+    process(df=df, id_col="样品编号", group_col="批次",
+            data_cols=["Vth", "BVdss", "Rds_on"], output_path=out,
+            limit_map={"Vth": 3.0})  # 只给 Vth 设 limit
+    assert out.exists()
+
+    import openpyxl
+    wb = openpyxl.load_workbook(out)
+    # Vth 有 limit 线，BVdss/Rds_on 只有组 serie
+    assert len(wb["Vth"]._charts[0].series) >= 4   # 3组+limit
+    assert len(wb["BVdss"]._charts[0].series) == 3  # 只有3组
+
+
+def test_add_excel_chart_standalone():
+    """独立使用 add_excel_chart（不经过 process）。"""
+    from reli_stat import add_excel_chart
+    from openpyxl import Workbook
+
+    df = pd.DataFrame({"id": ["A1", "A2", "B1", "B2"],
+                       "group": ["G1", "G1", "G2", "G2"],
+                       "Vth": [1.0, 2.0, 1.5, 2.5]})
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Vth"
+    ws.append(["id", "group", "数据", "CDF", "weibull", "limit"])
+    ws.append(["A1", "G1", 1.0, 0.25, None, None])
+    ws.append(["A2", "G1", 2.0, 0.75, None, None])
+    ws.append(["B1", "G2", 1.5, 0.25, None, None])
+    ws.append(["B2", "G2", 2.5, 0.75, None, None])
+
+    wb = add_excel_chart(wb, df, "id", "group", ["Vth"],
+                         x_label="Vth (V)", y_label="CDF",
+                         chart_width=15, chart_height=9)
+    assert len(wb["Vth"]._charts) == 1
+    assert wb["Vth"]._charts[0].title is not None
 
 
 if __name__ == "__main__":
