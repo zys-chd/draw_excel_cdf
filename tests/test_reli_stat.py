@@ -318,5 +318,49 @@ def test_pipeline_no_limit():
     assert len(chart.series) == 3
 
 
+# ── 多尺度组合输出（生成到 Windows 目录） ──
+
+WIN_FIXTURES = Path("/mnt/d/hermes/programming/reli-stat/tests/fixtures")
+
+SCALE_COMBOS = [
+    ("linear", "linear"),
+    ("log", "linear"),
+    ("linear", "log"),
+    ("log", "log"),
+]
+
+
+@pytest.mark.parametrize("x_scale,y_scale", SCALE_COMBOS)
+def test_scale_combos(x_scale: str, y_scale: str):
+    """不同 x/y 缩放组合输出独立文件到 Windows。"""
+    WIN_FIXTURES.mkdir(parents=True, exist_ok=True)
+
+    out = WIN_FIXTURES / f"output_x{x_scale}_y{y_scale}.xlsx"
+    result = process(
+        input_path=SAMPLE_XLSX,
+        id_col="样品编号",
+        group_col="批次",
+        data_cols=["Vth", "BVdss", "Rds_on"],
+        output_path=out,
+        limit_map={r"Vth": 3.0, r"BVdss": 660, r"Rds_on": 2.0},
+        x_scale=x_scale,
+        y_scale=y_scale,
+        show_limit=True,
+        chart_width=18,
+        chart_height=10,
+    )
+    assert out.exists()
+    print(f"  ✓ {out}")
+
+    # 快速校验
+    import openpyxl
+    wb = openpyxl.load_workbook(out)
+    assert len(wb.sheetnames) == 4
+    for sn in ["Vth", "BVdss", "Rds_on"]:
+        ch = wb[sn]._charts[0]
+        assert ch.x_axis.scaling.logBase == (10 if x_scale == "log" else None)
+        assert ch.y_axis.scaling.logBase == (10 if y_scale == "log" else None)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
