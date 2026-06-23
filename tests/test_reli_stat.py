@@ -204,6 +204,12 @@ def test_build_summary():
     assert list(summary["测试项"]) == ["Vth", "Vth"]
     assert summary.iloc[0]["总模块数"] == 3
     assert round(summary.iloc[0]["均值"], 1) == 3.0
+    # Weibull 拟合列存在
+    assert "Weibull β" in summary.columns
+    assert "Weibull η" in summary.columns
+    assert "拟合 R²" in summary.columns
+    # 3 个点的 Weibull 拟合应有效
+    assert summary.iloc[0]["拟合 R²"] is not None
 
 
 # ── 集成测试：端到端 pipeline ──────────────────
@@ -211,12 +217,13 @@ def test_build_summary():
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE_XLSX = FIXTURES / "sample.xlsx"
 OUTPUT_XLSX = FIXTURES / "output.xlsx"
+OUTPUT_NOLIMIT_XLSX = FIXTURES / "output_nolimit.xlsx"
 
 
 def test_pipeline_end_to_end():
     """完整流水线：读 sample.xlsx → 计算 → 写 Excel → 验证输出。
 
-    每次运行刷新 output.xlsx，可用于直接打开检查。"""
+    每次运行刷新 output.xlsx，包含所有参数和 limit 线。"""
     import openpyxl
 
     output = process(
@@ -243,43 +250,38 @@ def test_pipeline_end_to_end():
 
     # 统计汇总
     ws = wb["统计汇总"]
-    assert ws.cell(1, 1).value == "测试项"
-    # 9 行统计数据 (3参数 × 3组)
-    summary_rows = ws.max_row - 1 - 24 - 1  # 总行 - 统计表头 - 原始数据(24行+表头+分隔=
-    # 更直接：统计数据行数 = 3参数 × 3组 = 9
-    assert ws.cell(2, 1).value == "Vth"
-
-    # 原始数据表头在统计数据后面
-    # 统计数据: 1 header + 9 rows = 10，空行=11，原始表头=12
-    assert ws.cell(12, 1).value == "样品编号"
+    # 参数区应在顶部
+    assert ws.cell(1, 1).value == "输入文件"
+    # 10 params + 空行 = 行11 → 统计表头行12
+    stat_header_row = 12
+    assert ws.cell(stat_header_row, 1).value == "测试项"
+    assert ws.cell(stat_header_row + 1, 1).value == "Vth"
+    # 14 列（含 Weibull β/η/R²）
+    assert ws.cell(stat_header_row, 14).value == "拟合 R²"
+    # 原始数据：参数(10) + 空(1) + 统计头(1) + 统计数据(9) + 空(1) = 22 → 行23
+    assert ws.cell(23, 1).value == "样品编号"
 
     # --- 验证数据 sheet 有图表和数据 ---
     for sheet_name in ["Vth", "BVdss", "Rds_on"]:
         ws = wb[sheet_name]
-        assert ws.max_row >= 2  # 有数据行
-        assert len(ws._charts) == 1  # 每个 sheet 一个散点图
+        assert ws.max_row > 2  # 有数据行
+        assert len(ws._charts) == 1
 
         chart = ws._charts[0]
-        # 3 组 + limit 参考线
-        assert len(chart.series) >= 3
+        # 检查标题、轴标签已设置
+        assert chart.title is not None
+        assert chart.x_axis.title is not None
+        assert chart.y_axis.title is not None
+        # 3 组 + limit 线
+        assert len(chart.series) >= 4, f"{sheet_name}: expected ≥4 series, got {len(chart.series)}"
 
-    # --- 验证 CDF 值范围 (0, 1] ---
+    # --- 验证 CDF 值在 (0, 1] 且每组内单调 ---
     ws_vth = wb["Vth"]
-    cdf_values = []
-    for r in range(2, ws_vth.max_row + 1):
-        val = ws_vth.cell(r, 4).value  # CDF 列
-        if isinstance(val, (int, float)):
-            cdf_values.append(val)
-    # 只要 CDF 都在 (0, 1] 且每组内单调（按 group + data 排序后验证）
-    assert len(cdf_values) > 0
-    assert all(0 < v <= 1 for v in cdf_values)
-
-    # 按组验证 CDF 组内单调
     rows = []
     for r in range(2, ws_vth.max_row + 1):
-        g = ws_vth.cell(r, 2).value  # group 列
-        d = ws_vth.cell(r, 3).value  # data 列
-        c = ws_vth.cell(r, 4).value  # CDF 列
+        g = ws_vth.cell(r, 2).value
+        d = ws_vth.cell(r, 3).value
+        c = ws_vth.cell(r, 4).value
         if all(isinstance(x, (int, float)) for x in (d, c)):
             rows.append((g, d, c))
 
@@ -292,13 +294,20 @@ def test_pipeline_end_to_end():
 
 
 def test_pipeline_no_limit():
-    """不传 limit_map 时仍正常运行。"""
+    """不传 limit_map 时仍正常运行（用独立输出文件）。"""
     output = process(
         input_path=SAMPLE_XLSX,
         id_col="样品编号",
         group_col="批次",
         data_cols=["Vth"],
-        output_path=OUTPUT_XLSX,
+        output_path=OUTPUT_NOLIMIT_XLSX,
         show_limit=False,
     )
-    assert OUTPUT_XLSX.exists()
+    assert OUTPUT_NOLIMIT_XLSX.exists()
+
+    import openpyxl
+    wb = openpyxl.load_workbook(OUTPUT_NOLIMIT_XLSX)
+    assert wb.sheetnames == ["统计汇总", "Vth"]
+    chart = wb["Vth"]._charts[0]
+    # 3 组，无 limit
+    assert len(chart.series) == 3

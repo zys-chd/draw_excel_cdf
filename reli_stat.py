@@ -77,6 +77,9 @@ SUMMARY_HEADERS = [
     "最小值",
     "最大值",
     "变异系数(CV%)",
+    "Weibull β",
+    "Weibull η",
+    "拟合 R²",
 ]
 
 # Header style
@@ -128,6 +131,19 @@ def median_rank(values: pd.Series) -> pd.Series:
     return mr
 
 
+def _add_gridlines(chart: ScatterChart) -> None:
+    """给散点图添加浅灰色半透明网格线。"""
+    from openpyxl.chart.axis import ChartLines
+    from openpyxl.chart.shapes import GraphicalProperties
+    from openpyxl.drawing.line import LineProperties
+
+    for axis in (chart.x_axis, chart.y_axis):
+        axis.majorGridlines = ChartLines()
+        sp_pr = GraphicalProperties()
+        sp_pr.ln = LineProperties(solidFill="D9D9D9", w=6350)  # ~0.5pt 浅灰
+        axis.majorGridlines.spPr = sp_pr
+
+
 def weibull_transform(cdf: pd.Series) -> pd.Series:
     """
     Weibull 变换: W = ln(-ln(1 - CDF))
@@ -141,6 +157,41 @@ def weibull_transform(cdf: pd.Series) -> pd.Series:
     result = pd.Series(np.nan, index=cdf.index, dtype=float)
     result[valid] = np.log(-np.log(1 - cdf[valid]))
     return result
+
+
+def fit_weibull(data: pd.Series, mr: pd.Series) -> tuple[float, float, float] | None:
+    """
+    Weibull 分布拟合。
+
+    对 ln(data) 和 weibull(mr) 做线性回归：
+        ln(-ln(1-MR)) = beta * ln(x) - beta * ln(eta)
+
+    返回 (beta, eta, R²)。data 含非正值或样本不足时返回 None。
+    """
+    import numpy as np
+
+    valid = (data > 0) & (mr > 0) & (mr < 1)
+    x = data[valid]
+    y = mr[valid]
+
+    if len(x) < 3:
+        return None
+
+    ln_x = np.log(x.values)
+    ln_weibull = np.log(-np.log(1 - y.values))
+
+    A = np.vstack([ln_x, np.ones(len(ln_x))]).T
+    slope, intercept = np.linalg.lstsq(A, ln_weibull, rcond=None)[0]
+
+    beta = slope
+    eta = np.exp(-intercept / beta) if beta != 0 else float("nan")
+
+    y_pred = slope * ln_x + intercept
+    ss_res = np.sum((ln_weibull - y_pred) ** 2)
+    ss_tot = np.sum((ln_weibull - np.mean(ln_weibull)) ** 2)
+    r_squared = 1 - ss_res / ss_tot if ss_tot != 0 else float("nan")
+
+    return (round(beta, 4), round(eta, 4), round(r_squared, 4))
 
 
 def get_limit(
@@ -226,13 +277,18 @@ def build_summary(
             if len(values) == 0:
                 continue
 
+            # Weibull 拟合
+            mr = median_rank(values)
+            wb_fit = fit_weibull(values, mr)
+            beta, eta, r2 = wb_fit if wb_fit else (None, None, None)
+
             rows.append(
                 {
                     "测试项": col,
                     "总模块数": len(values),
                     "Group": grp_name,
                     "均值": round(values.mean(), 4),
-                    "标准差": round(values.std(ddof=0), 4),  # 总体标准差
+                    "标准差": round(values.std(ddof=0), 4),
                     "25%分位": round(values.quantile(0.25), 4),
                     "75%分位": round(values.quantile(0.75), 4),
                     "中位数": round(values.median(), 4),
@@ -244,6 +300,9 @@ def build_summary(
                         else float("nan"),
                         2,
                     ),
+                    "Weibull β": beta,
+                    "Weibull η": eta,
+                    "拟合 R²": r2,
                 }
             )
 
@@ -281,39 +340,65 @@ def write_summary_sheet(
     wb: Workbook,
     summary_df: pd.DataFrame,
     raw_df: pd.DataFrame | None = None,
+    params: dict | None = None,
 ) -> None:
-    """将统计汇总 + 原始数据 写入 Workbook 的第一个 sheet。"""
+    """将参数信息 + 统计汇总 + 原始数据 写入第一个 sheet。"""
+
+    PARAM_LABEL_FONT = Font(name="微软雅黑", bold=True, size=10)
+    PARAM_VALUE_FONT = Font(name="微软雅黑", size=10)
+
     ws = wb.active
     ws.title = "统计汇总"
 
-    # ── 统计汇总表 ──
-    for col_idx, header in enumerate(SUMMARY_HEADERS, start=1):
-        ws.cell(row=1, column=col_idx, value=header)
+    summary_start_row = 1
 
-    for row_idx, (_, row) in enumerate(summary_df.iterrows(), start=2):
+    # ── 参数信息（可选，放在最顶部） ──
+    if params:
+        param_items = [
+            ("输入文件", params.get("input_path", "")),
+            ("ID 列", params.get("id_col", "")),
+            ("分组列", params.get("group_col", "")),
+            ("数据列", ", ".join(params.get("data_cols", []))),
+            ("X 轴", params.get("x_axis", "")),
+            ("Y 轴", params.get("y_axis", "")),
+            ("X 缩放", params.get("x_scale", "")),
+            ("Y 缩放", params.get("y_scale", "")),
+            ("Limit Map", str(params.get("limit_map", "")) if params.get("limit_map") else "无"),
+            ("显示 Limit 线", "是" if params.get("show_limit") else "否"),
+        ]
+        for i, (label, value) in enumerate(param_items):
+            r = 1 + i
+            ws.cell(row=r, column=1, value=label).font = PARAM_LABEL_FONT
+            ws.cell(row=r, column=2, value=str(value)).font = PARAM_VALUE_FONT
+
+        summary_start_row = len(param_items) + 2  # 空一行
+
+    # ── 统计汇总表 ──
+    hdr_row = summary_start_row
+    for col_idx, header in enumerate(SUMMARY_HEADERS, start=1):
+        ws.cell(row=hdr_row, column=col_idx, value=header)
+
+    for row_idx, (_, row) in enumerate(summary_df.iterrows(), start=hdr_row + 1):
         for col_idx, header in enumerate(SUMMARY_HEADERS, start=1):
             ws.cell(row=row_idx, column=col_idx, value=row[header])
 
-    _apply_header_style(ws, 1, len(SUMMARY_HEADERS))
+    _apply_header_style(ws, hdr_row, len(SUMMARY_HEADERS))
     if len(summary_df) > 0:
-        _apply_data_border(ws, 2, 1 + len(summary_df), len(SUMMARY_HEADERS))
+        _apply_data_border(
+            ws, hdr_row + 1, hdr_row + len(summary_df), len(SUMMARY_HEADERS)
+        )
 
     # ── 原始数据（接在统计汇总后面，中间空一行） ──
-    raw_start_row = 1 + len(summary_df) + 2  # +1 header, +1 spacer
+    raw_start_row = hdr_row + len(summary_df) + 2  # +1 header, +1 spacer
     if raw_df is not None and not raw_df.empty:
         raw_headers = list(raw_df.columns)
         n_raw_cols = len(raw_headers)
 
-        # 空行留分隔
-        # (不用写内容)
-
-        # 写原始数据表头
         for col_idx, header in enumerate(raw_headers, start=1):
             ws.cell(row=raw_start_row, column=col_idx, value=header)
 
         _apply_header_style(ws, raw_start_row, n_raw_cols)
 
-        # 写原始数据
         for ri, (_, row) in enumerate(raw_df.iterrows(), start=raw_start_row + 1):
             for ci, header in enumerate(raw_headers, start=1):
                 ws.cell(row=ri, column=ci, value=row[header])
@@ -471,14 +556,15 @@ def add_excel_chart(
         chart = ScatterChart()
         chart.width = chart_width
         chart.height = chart_height
-        chart.style = 2  # 无背景网格线的简约风格
 
-        if chart_title:
-            chart.title = chart_title
-        if x_label:
-            chart.x_axis.title = x_label
-        if y_label:
-            chart.y_axis.title = y_label
+        # 标题和轴标签（未传时用默认值）
+        chart.title = chart_title or f"{col_name} CDF 分布"
+        chart.x_axis.title = x_label or col_name
+        chart.y_axis.title = y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")
+        chart.x_axis.tickLblPos = "low"
+        chart.y_axis.tickLblPos = "low"
+        chart.x_axis.delete = False
+        chart.y_axis.delete = False
 
         # 坐标轴缩放类型
         if x_scale == "log":
@@ -628,9 +714,12 @@ def add_excel_chart(
                 chart.y_axis.scaling.min = y_min - margin
                 chart.y_axis.scaling.max = y_max + margin
 
-        # 网格线
-        chart.y_axis.majorGridlines = None
-        chart.x_axis.majorGridlines = None
+        # 网格线（浅灰半透明） + 轴标题与刻度分离
+        _add_gridlines(chart)
+        chart.x_axis.tickLblPos = "low"
+        chart.y_axis.tickLblPos = "low"
+        chart.x_axis.crosses = "autoZero"
+        chart.y_axis.crosses = "autoZero"
 
         # 添加图表到 sheet
         # 放在数据表右侧
@@ -728,7 +817,23 @@ def process(
 
     # 3. 写 Workbook
     wb = Workbook()
-    write_summary_sheet(wb, summary_df, raw_df=df)
+    write_summary_sheet(
+        wb,
+        summary_df,
+        raw_df=df,
+        params={
+            "input_path": str(input_path),
+            "id_col": id_col,
+            "group_col": group_col,
+            "data_cols": data_cols,
+            "x_axis": x_axis,
+            "y_axis": y_axis,
+            "x_scale": x_scale,
+            "y_scale": y_scale,
+            "limit_map": limit_map,
+            "show_limit": show_limit,
+        },
+    )
     write_data_sheets(wb, long_df, data_cols)
 
     # 4. 给每个数据 sheet 添加散点图
