@@ -80,6 +80,7 @@ SUMMARY_HEADERS = [
     "Weibull β",
     "Weibull η",
     "拟合 R²",
+    "limit处 CDF(%)",
 ]
 
 # Header style
@@ -132,16 +133,22 @@ def median_rank(values: pd.Series) -> pd.Series:
 
 
 def _add_gridlines(chart: ScatterChart) -> None:
-    """给散点图添加浅灰色半透明网格线。"""
+    """给散点图添加主网格线和次网格线（浅灰）。"""
     from openpyxl.chart.axis import ChartLines
     from openpyxl.chart.shapes import GraphicalProperties
     from openpyxl.drawing.line import LineProperties
 
     for axis in (chart.x_axis, chart.y_axis):
+        # 主网格线
         axis.majorGridlines = ChartLines()
         sp_pr = GraphicalProperties()
-        sp_pr.ln = LineProperties(solidFill="D9D9D9", w=6350)  # ~0.5pt 浅灰
+        sp_pr.ln = LineProperties(solidFill="D9D9D9", w=6350)
         axis.majorGridlines.spPr = sp_pr
+        # 次网格线（更淡）
+        axis.minorGridlines = ChartLines()
+        sp_pr2 = GraphicalProperties()
+        sp_pr2.ln = LineProperties(solidFill="ECECEC", w=3175)
+        axis.minorGridlines.spPr = sp_pr2
 
 
 def weibull_transform(cdf: pd.Series) -> pd.Series:
@@ -263,15 +270,22 @@ def build_summary(
     df: pd.DataFrame,
     group_col: str,
     data_cols: list[str],
+    limit_map: dict[str, float] | None = None,
 ) -> pd.DataFrame:
     """
     构建统计汇总 DataFrame。
 
-    返回列: 测试项, 总模块数, Group, 均值, 标准差, 25%分位, 75%分位, 中位数, 最小值, 最大值, 变异系数(CV%)
+    返回列: 测试项, 总模块数, Group, 均值, 标准差, 25%分位, 75%分位, 中位数,
+            最小值, 最大值, 变异系数(CV%), Weibull β, Weibull η, 拟合 R², limit处 CDF(%)
     """
+    import numpy as np
+
     rows = []
 
     for col in data_cols:
+        # 查该测试项的 limit 值
+        limit_val = get_limit(col, limit_map)
+
         for grp_name, grp_df in df.groupby(group_col):
             values = grp_df[col].dropna()
             if len(values) == 0:
@@ -281,6 +295,16 @@ def build_summary(
             mr = median_rank(values)
             wb_fit = fit_weibull(values, mr)
             beta, eta, r2 = wb_fit if wb_fit else (None, None, None)
+
+            # limit 处的 CDF: F(limit) = 1 - exp(-(limit/eta)^beta)
+            cdf_at_limit = None
+            if beta is not None and eta is not None and limit_val is not None:
+                try:
+                    cdf_at_limit = round(
+                        (1 - np.exp(-((limit_val / eta) ** beta))) * 100, 2
+                    )
+                except (OverflowError, ZeroDivisionError):
+                    cdf_at_limit = None
 
             rows.append(
                 {
@@ -303,6 +327,7 @@ def build_summary(
                     "Weibull β": beta,
                     "Weibull η": eta,
                     "拟合 R²": r2,
+                    "limit处 CDF(%)": cdf_at_limit,
                 }
             )
 
@@ -746,27 +771,34 @@ def add_excel_chart(
         chart.y_axis.minorTickMark = "out"
         chart.x_axis.tickLblSkip = 1
         chart.y_axis.tickLblSkip = 1
-        chart.x_axis.tickLblPos = "low"   # X轴标签在底部
-        chart.y_axis.tickLblPos = "low"   # Y轴标签在左侧
+        chart.x_axis.tickLblPos = "low"
+        chart.y_axis.tickLblPos = "low"
         # 数值格式
         chart.x_axis.numFmt = '0.0###'
         chart.y_axis.numFmt = '0.0###'
 
-        # 标题 + 图例放底部（不覆盖绘图区）
+        # 对数轴时强制轴交叉在最小值（否则 X 轴会跑到顶部）
+        if x_scale == "log":
+            chart.x_axis.crosses = "min"
+        if y_scale == "log":
+            chart.y_axis.crosses = "min"
+
+        # 标题 + 图例右侧竖排（不覆盖绘图区）
         chart.title = chart_title or f"{col_name} CDF 分布"
-        chart.legend.position = "b"
+        chart.legend.position = "r"
         chart.legend.overlay = False
-        chart.x_axis.title = x_label or col_name
-        chart.y_axis.title = y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")
+        # 轴标题加前置换行撑开距离
+        chart.x_axis.title = "\n" + (x_label or col_name)
+        chart.y_axis.title = "\n" + (y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))"))
 
         # 缩小绘图区，给轴标题和图例留空间
         from openpyxl.chart.layout import Layout, ManualLayout
         chart.plot_area.layout = Layout(
             manualLayout=ManualLayout(
-                xMode="edge", x=0.10,      # 左侧留 10% 给 Y 轴标题
-                yMode="edge", y=0.12,      # 底部留 12% 给 X 轴标题
-                wMode="factor", w=0.85,    # 宽度 85%
-                hMode="factor", h=0.73,    # 高度 73%（顶部留给标题，底部留给图例）
+                xMode="edge", x=0.10,
+                yMode="edge", y=0.12,
+                wMode="factor", w=0.78,    # 右侧留给图例
+                hMode="factor", h=0.75,
             )
         )
 
@@ -866,7 +898,7 @@ def process(
 
     # 2. 计算
     long_df = compute_statistics(df, id_col, group_col, data_cols, limit_map)
-    summary_df = build_summary(df, group_col, data_cols)
+    summary_df = build_summary(df, group_col, data_cols, limit_map=limit_map)
 
     # 3. 写 Workbook
     wb = Workbook()
