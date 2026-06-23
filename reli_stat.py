@@ -615,44 +615,21 @@ def add_excel_chart(
 
         groups = sub["group"].unique().tolist()
         n_rows = len(sub)
-        # 数据结束行 = 表头(1) + n_rows
         data_end = 1 + n_rows
+
+        # 按组排序后重写 sheet，重新取 groups
+        sub = sub.sort_values(["group", "data"]).reset_index(drop=True)
+        groups = sub["group"].unique().tolist()
 
         # --- 构建散点图 ---
         chart = ScatterChart()
         chart.width = chart_width
         chart.height = chart_height
 
-        # 坐标轴缩放类型
         if x_scale == "log":
             chart.x_axis.scaling.logBase = 10
         if y_scale == "log":
             chart.y_axis.scaling.logBase = 10
-
-        # 为每个 group 建一个系列
-        # 需要找到该 group 数据在 sheet 中的行号范围
-        for gi, grp_name in enumerate(groups):
-            grp_mask = sub["group"] == grp_name
-            grp_data = sub[grp_mask]
-            grp_rows = grp_data.index.tolist()
-            if not grp_rows:
-                continue
-
-            # group 数据在 sheet 中的行号（2-based: 第1行是表头）
-            first_row = grp_data.index[0] + 2  # sub 的 index 是原 df index
-            # 实际上 sub.sort_values 后索引变了，需要重新定位
-            # 更好的方式：按组内行号定位
-
-            # --- 重新定位：sub 排序后索引重置 ---
-            # 因为 sub 是排序后的，行号已重置
-            # 我们改用另一种方式：不算小组偏移，直接用 sub 的行位置
-
-        # 上面逻辑有问题——sub 排序后索引乱序。改用：
-        # 先对 sub 重置索引，然后按组写回 sheet、同时记录行范围
-
-        # 重新写数据 sheet，按组排序
-        sub = sub.reset_index(drop=True)
-        sub = sub.sort_values(["group", "data"])
 
         # 重新写数据
         sheet_columns = ["id", "group", "data", "CDF", "weibull", "limit"]
