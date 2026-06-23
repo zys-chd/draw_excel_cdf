@@ -105,32 +105,34 @@ def empirical_cdf(values: pd.Series) -> pd.Series:
     """
     计算经验 CDF = rank / n。
 
-    rank 使用 average method（相同值取平均秩次）。
-    返回 Series，索引同输入。
+    rank 使用 average method，NaN 被排除不参与计数。
     """
-    n = len(values)
+    valid = values.notna()
+    n = valid.sum()
     if n == 0:
-        return pd.Series(dtype=float)
+        return pd.Series(float("nan"), index=values.index, dtype=float)
 
-    ranks = values.rank(method="average")
-    return ranks / n
+    result = pd.Series(float("nan"), index=values.index, dtype=float)
+    ranks = values[valid].rank(method="average")
+    result[valid] = ranks / n
+    return result
 
 
 def median_rank(values: pd.Series) -> pd.Series:
     """
     计算 Median Rank (Benard's approximation)。
 
-    MR_i = (rank_i - 0.3) / (n + 0.4)
-
-    用于 Weibull 变换。返回 Series，索引同输入。
+    MR_i = (rank_i - 0.3) / (n + 0.4)，NaN 被排除。
     """
-    n = len(values)
+    valid = values.notna()
+    n = valid.sum()
     if n == 0:
-        return pd.Series(dtype=float)
+        return pd.Series(float("nan"), index=values.index, dtype=float)
 
-    ranks = values.rank(method="average")
-    mr = (ranks - 0.3) / (n + 0.4)
-    return mr
+    result = pd.Series(float("nan"), index=values.index, dtype=float)
+    ranks = values[valid].rank(method="average")
+    result[valid] = (ranks - 0.3) / (n + 0.4)
+    return result
 
 
 def _add_gridlines(chart: ScatterChart) -> None:
