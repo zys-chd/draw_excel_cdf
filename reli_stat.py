@@ -813,6 +813,12 @@ def add_excel_chart(
         chart.title.overlay = False
         chart.legend.position = "r"
         chart.legend.overlay = False
+
+        # 绘图区黑色边框
+        from openpyxl.chart.shapes import GraphicalProperties
+        from openpyxl.drawing.line import LineProperties
+        chart.plot_area.graphicalProperties = GraphicalProperties()
+        chart.plot_area.graphicalProperties.ln = LineProperties(solidFill="000000", w=9525)
         chart.x_axis.title = _resolve_label(col_name, x_label, x_label_map, col_name)
         chart.y_axis.title = _resolve_label(
             col_name, y_label, y_label_map,

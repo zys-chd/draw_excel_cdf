@@ -447,5 +447,38 @@ def test_label_map():
     assert "ΔRds_on (mΩ)" in str(wb["Rds_on"]._charts[0].x_axis.title)
 
 
+def test_cdf_values_correct():
+    """验证各组 CDF 值正确。GA[1,3,2]→CDF=[0.33,1.0,0.67], GB[10,20]→CDF=[0.5,1.0]。"""
+    df = pd.DataFrame({
+        "id": ["A1", "A2", "A3", "B1", "B2"],
+        "group": ["GA", "GA", "GA", "GB", "GB"],
+        "Vth": [1.0, 3.0, 2.0, 10.0, 20.0],
+    })
+    out = FIXTURES / "output_cdf_check.xlsx"
+    process(df=df, id_col="id", group_col="group", data_cols=["Vth"],
+            output_path=out, show_limit=False)
+
+    import openpyxl
+    wb = openpyxl.load_workbook(out)
+    ws = wb["Vth"]
+    rows = {}
+    for r in range(2, ws.max_row + 1):
+        g = ws.cell(r, 2).value
+        d = ws.cell(r, 3).value
+        c = ws.cell(r, 4).value
+        rows.setdefault(g, []).append((d, c))
+
+    ga = sorted(rows["GA"])
+    assert len(ga) == 3
+    assert abs(ga[0][1] - 1 / 3) < 0.01
+    assert abs(ga[1][1] - 2 / 3) < 0.01
+    assert abs(ga[2][1] - 1.0) < 0.01
+
+    gb = sorted(rows["GB"])
+    assert len(gb) == 2
+    assert abs(gb[0][1] - 0.5) < 0.01
+    assert abs(gb[1][1] - 1.0) < 0.01
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
