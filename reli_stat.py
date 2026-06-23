@@ -749,14 +749,23 @@ def add_excel_chart(
             )
 
             if _x_min is not None and _x_max is not None:
-                padding = (_x_max - _x_min) * 0.05 if _x_max > _x_min else 1.0
-                chart.x_axis.scaling.min = round(_x_min - padding, 4)
-                chart.x_axis.scaling.max = round(_x_max + padding, 4)
+                # 用户显式指定的范围不加 padding，数据推导的加 5%
+                if x_min is not None or x_max is not None:
+                    chart.x_axis.scaling.min = _x_min
+                    chart.x_axis.scaling.max = _x_max
+                else:
+                    padding = (_x_max - _x_min) * 0.05 if _x_max > _x_min else 1.0
+                    chart.x_axis.scaling.min = round(_x_min - padding, 4)
+                    chart.x_axis.scaling.max = round(_x_max + padding, 4)
 
             if _y_min is not None and _y_max is not None:
-                padding = (_y_max - _y_min) * 0.05 if _y_max > _y_min else 0.1
-                chart.y_axis.scaling.min = round(_y_min - padding, 4)
-                chart.y_axis.scaling.max = round(_y_max + padding, 4)
+                if y_min is not None or y_max is not None:
+                    chart.y_axis.scaling.min = _y_min
+                    chart.y_axis.scaling.max = _y_max
+                else:
+                    padding = (_y_max - _y_min) * 0.05 if _y_max > _y_min else 0.1
+                    chart.y_axis.scaling.min = round(_y_min - padding, 4)
+                    chart.y_axis.scaling.max = round(_y_max + padding, 4)
 
         # 网格线 + 次级刻度 + 轴显示
         _add_gridlines(chart)
@@ -783,13 +792,13 @@ def add_excel_chart(
         chart.y_axis.title.overlay = False
 
         chart.plot_area.layout = Layout(
-        manualLayout=ManualLayout(
-            xMode="factor", x=0.12,
-            yMode="factor", y=0.15,
-            wMode="factor", w=0.72,
-            hMode="factor", h=0.70,
+            manualLayout=ManualLayout(
+                xMode="factor", x=0,
+                yMode="factor", y=0,
+                wMode="factor", w=0,
+                hMode="factor", h=0,
+            )
         )
-    )
 
         # 添加图表到 sheet
         # 放在数据表右侧

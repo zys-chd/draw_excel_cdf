@@ -354,7 +354,7 @@ def test_auto_axis_off():
     out = FIXTURES / "output_manual_axis.xlsx"
     process(df=df, id_col="样品编号", group_col="批次",
             data_cols=["Vth"], output_path=out, auto_axis=False,
-            x_min=2.0, y_min=0, y_max=1.1, show_limit=False)
+            x_min=2.0, x_max=3.0, y_min=0, y_max=1.1, show_limit=True)
     assert out.exists()
 
 
