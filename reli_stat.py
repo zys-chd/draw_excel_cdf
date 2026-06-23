@@ -379,24 +379,15 @@ def write_summary_sheet(
 
     # ── 参数信息（可选，放在最顶部） ──
     if params:
-        param_items = [
-            ("输入文件", params.get("input_path", "")),
-            ("ID 列", params.get("id_col", "")),
-            ("分组列", params.get("group_col", "")),
-            ("数据列", ", ".join(params.get("data_cols", []))),
-            ("X 轴", params.get("x_axis", "")),
-            ("Y 轴", params.get("y_axis", "")),
-            ("X 缩放", params.get("x_scale", "")),
-            ("Y 缩放", params.get("y_scale", "")),
-            ("Limit Map", str(params.get("limit_map", "")) if params.get("limit_map") else "无"),
-            ("显示 Limit 线", "是" if params.get("show_limit") else "否"),
-        ]
-        for i, (label, value) in enumerate(param_items):
+        for i, (label, value) in enumerate(params.items()):
             r = 1 + i
             ws.cell(row=r, column=1, value=label).font = PARAM_LABEL_FONT
             ws.cell(row=r, column=2, value=str(value)).font = PARAM_VALUE_FONT
+        # 参数区列宽
+        ws.column_dimensions["A"].width = 18
+        ws.column_dimensions["B"].width = 48
 
-        summary_start_row = len(param_items) + 2  # 空一行
+        summary_start_row = len(params) + 2  # 空一行
 
     # ── 统计汇总分区标题（合并居中） ──
     SECTION_TITLE_FONT = Font(name="微软雅黑", bold=True, size=12, color="4472C4")
@@ -901,16 +892,26 @@ def process(
         summary_df,
         raw_df=df,
         params={
-            "input_path": str(input_path),
-            "id_col": id_col,
-            "group_col": group_col,
-            "data_cols": data_cols,
-            "x_axis": x_axis,
-            "y_axis": y_axis,
-            "x_scale": x_scale,
-            "y_scale": y_scale,
-            "limit_map": limit_map,
-            "show_limit": show_limit,
+            "输入文件": str(input_path),
+            "输出文件": str(output_path),
+            "ID 列": id_col,
+            "分组列": group_col,
+            "数据列": ", ".join(data_cols),
+            "X 轴": f"{x_axis}（默认）" if x_axis == "data" else x_axis,
+            "Y 轴": f"{y_axis}（默认）" if y_axis == "CDF" else y_axis,
+            "X 缩放": f"{x_scale}（默认）" if x_scale == "linear" else x_scale,
+            "Y 缩放": f"{y_scale}（默认）" if y_scale == "linear" else y_scale,
+            "显示 Limit": "是（默认）" if show_limit else "否",
+            "Limit Map": str(limit_map) if limit_map else "无（默认）",
+            "自动轴范围": f"{'是（默认）' if auto_axis else '否'}",
+            "X 范围": f"{x_min}~{x_max}" if x_min is not None or x_max is not None else "自动（默认）",
+            "Y 范围": f"{y_min}~{y_max}" if y_min is not None or y_max is not None else "自动（默认）",
+            "图表宽度": f"{chart_width} cm（默认）" if chart_width == 20 else f"{chart_width} cm",
+            "图表高度": f"{chart_height} cm（默认）" if chart_height == 12 else f"{chart_height} cm",
+            "Marker 大小": f"{marker_size}（默认）" if marker_size == 5 else str(marker_size),
+            "图表标题": f"{chart_title or '自动（默认）'}",
+            "X 轴标签": f"{x_label or '自动（默认）'}",
+            "Y 轴标签": f"{y_label or '自动（默认）'}",
         },
     )
     write_data_sheets(wb, long_df, data_cols)

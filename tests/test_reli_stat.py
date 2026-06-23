@@ -252,18 +252,18 @@ def test_pipeline_end_to_end():
 
     # 统计汇总
     ws = wb["统计汇总"]
-    # 参数区应在顶部
+    # 参数区应在顶部（20 个参数）
     assert ws.cell(1, 1).value == "输入文件"
-    # 10 params + 空行 + 标题"统计汇总" = 12 → 统计表头行13
-    stat_header_row = 13
+    # 20 params + 空行 + 标题"统计汇总" → 统计表头行23
+    stat_header_row = 23
     assert ws.cell(stat_header_row, 1).value == "测试项"
     assert ws.cell(stat_header_row + 1, 1).value == "Vth"
     # 15 列（含 Weibull β/η/R²/limit处 CDF）
     assert ws.cell(stat_header_row, 15).value == "limit处 CDF(%)"
     # 分区标题
-    assert ws.cell(12, 1).value == "统计汇总"  # 合并单元格后该值在第一个格子
-    # 原始数据：12(标题) + 1(空) + 1(数据标题) + 1(原始表头) = 25
-    raw_hdr_row = 25
+    assert ws.cell(22, 1).value == "统计汇总"  # 合并单元格后该值在第一个格子
+    # 原始数据：22(标题) + 1(统计头) + 9(数据) + 1(空) + 1(原始标题) + 1 = 35
+    raw_hdr_row = 35
     assert ws.cell(raw_hdr_row, 1).value == "样品编号"
 
     # --- 验证数据 sheet 有图表和数据 ---
