@@ -777,25 +777,29 @@ def add_excel_chart(
         chart.x_axis.numFmt = '0.0###'
         chart.y_axis.numFmt = '0.0###'
 
-        # 轴交叉在最小值（坐标轴线跟随标签位置）
+        # 强制轴交叉在数据最小值
         chart.x_axis.crosses = "min"
         chart.y_axis.crosses = "min"
+        # 显式设置交叉值
+        if not sub.empty:
+            chart.x_axis.crossesAt = float(sub[y_axis].min())
+            chart.y_axis.crossesAt = float(sub[x_axis].min())
 
-        # 标题 + 图例右侧竖排（不覆盖绘图区）
+        # 标题 + 图例右侧竖排
         chart.title = chart_title or f"{col_name} CDF 分布"
         chart.legend.position = "r"
         chart.legend.overlay = False
         chart.x_axis.title = x_label or col_name
         chart.y_axis.title = y_label or ("CDF" if y_axis == "CDF" else "ln(-ln(1-MR))")
 
-        # 缩小绘图区，四周留白放标题/轴标题/图例
+        # 大幅缩小绘图区，四周留白：上30%放大标题，左18%放Y标题，右20%放图例，下18%放X标题
         from openpyxl.chart.layout import Layout, ManualLayout
         chart.plot_area.layout = Layout(
             manualLayout=ManualLayout(
-                xMode="edge", x=0.14,      # 左侧留给 Y 轴标题
-                yMode="edge", y=0.15,      # 底部留给 X 轴标题
-                wMode="factor", w=0.65,    # 宽度收缩（右侧留给图例）
-                hMode="factor", h=0.65,    # 高度收缩（顶部留给大标题）
+                xMode="factor", x=0.20,
+                yMode="factor", y=0.20,
+                wMode="factor", w=0.58,
+                hMode="factor", h=0.55,
             )
         )
 
