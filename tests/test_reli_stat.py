@@ -318,6 +318,22 @@ def test_pipeline_no_limit():
     assert len(chart.series) == 3
 
 
+def test_pipeline_defaults():
+    """默认参数输出（备注：默认）。"""
+    out = FIXTURES / "output_default.xlsx"
+    process(
+        input_path=SAMPLE_XLSX,
+        id_col="样品编号",
+        group_col="批次",
+        data_cols=["Vth", "BVdss", "Rds_on"],
+        output_path=out,
+        chart_title="默认参数",
+        x_label="数据",
+        y_label="CDF",
+    )
+    assert out.exists()
+
+
 # ── 多尺度组合输出 ──
 
 SCALE_COMBOS = [
