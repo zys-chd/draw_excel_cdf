@@ -589,8 +589,12 @@ def add_excel_chart(
         if y_scale == "log":
             chart.y_axis.scaling.logBase = 10
 
-        # 重新写数据
-        sheet_columns = ["id", "group", "data", "CDF", "weibull", "limit"]
+        # 重新写数据（含表头 + 样式）
+        sheet_headers = ["id", "group", "数据", "CDF", "weibull", "limit"]
+        for ci, h in enumerate(sheet_headers, start=1):
+            ws.cell(row=1, column=ci, value=h)
+        _apply_header_style(ws, 1, len(sheet_headers))
+
         for ri in range(len(sub)):
             row_data = sub.iloc[ri]
             ws.cell(row=2 + ri, column=1, value=row_data["id"])
@@ -599,6 +603,11 @@ def add_excel_chart(
             ws.cell(row=2 + ri, column=4, value=row_data["CDF"])
             ws.cell(row=2 + ri, column=5, value=row_data["weibull"])
             ws.cell(row=2 + ri, column=6, value=row_data["limit"])
+
+        if len(sub) > 0:
+            _apply_data_border(ws, 2, 1 + len(sub), len(sheet_headers))
+        for ci, w in enumerate([14, 10, 12, 12, 14, 10], start=1):
+            ws.column_dimensions[get_column_letter(ci)].width = w
 
         # --- 确定 x_col, y_col 在 sheet 中的列号 ---
         x_col_map = {
