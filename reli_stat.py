@@ -212,6 +212,8 @@ def compute_statistics(
 
     result = pd.concat(frames, ignore_index=True)
     result = result[[id_col, group_col, "variable", "data", "CDF", "weibull", "limit"]]
+    # 统一列名为 "id" 和 "group"，方便下游模块使用
+    result = result.rename(columns={id_col: "id", group_col: "group"})
     return result
 
 
@@ -448,7 +450,7 @@ def add_excel_chart(
         if sub.empty:
             continue
 
-        groups = sub[group_col].unique().tolist()
+        groups = sub["group"].unique().tolist()
         n_rows = len(sub)
         # 数据结束行 = 表头(1) + n_rows
         data_end = 1 + n_rows
@@ -475,7 +477,7 @@ def add_excel_chart(
         # 为每个 group 建一个系列
         # 需要找到该 group 数据在 sheet 中的行号范围
         for gi, grp_name in enumerate(groups):
-            grp_mask = sub[group_col] == grp_name
+            grp_mask = sub["group"] == grp_name
             grp_data = sub[grp_mask]
             grp_rows = grp_data.index.tolist()
             if not grp_rows:
@@ -495,7 +497,7 @@ def add_excel_chart(
 
         # 重新写数据 sheet，按组排序
         sub = sub.reset_index(drop=True)
-        sub = sub.sort_values([group_col, "data"])
+        sub = sub.sort_values(["group", "data"])
 
         # 重新写数据
         sheet_columns = ["id", "group", "data", "CDF", "weibull", "limit"]
@@ -522,7 +524,7 @@ def add_excel_chart(
 
         # --- 每个 group 一个系列 ---
         for gi, grp_name in enumerate(groups):
-            grp_mask = sub[group_col] == grp_name
+            grp_mask = sub["group"] == grp_name
             grp_indices = sub[grp_mask].index.tolist()
             if not grp_indices:
                 continue
@@ -631,7 +633,7 @@ def add_excel_chart(
 # ──────────────────────────────────────────────
 
 
-def read_excel(filepath: str | Path) -> pd.DataFrame:
+def read_file(filepath: str | Path) -> pd.DataFrame:
     """
     读取 Excel 文件返回 DataFrame。
 
@@ -706,7 +708,7 @@ def process(
         输出文件路径。
     """
     # 1. 读取
-    df = read_excel(input_path)
+    df = read_file(input_path)
 
     # 2. 计算
     long_df = compute_statistics(df, id_col, group_col, data_cols, limit_map)
@@ -745,3 +747,29 @@ def process(
     wb.save(output_path)
 
     return output_path
+
+
+if __name__ == "__main__":
+    # 测试运行
+    test_input = Path("test_data.xlsx")
+    test_output = Path("test_output.xlsx")
+    process(
+        input_path=test_input,
+        id_col="id",
+        group_col="group",
+        data_cols=["Vth", "BV"],
+        output_path=test_output,
+        limit_map={r"G1": 3.5},
+        x_axis="data",
+        y_axis="CDF",
+        x_scale="linear",
+        y_scale="linear",
+        show_limit=True,
+        chart_width=20,
+        chart_height=12,
+        auto_axis=False,
+        marker_size=5,
+        chart_title="Reliability Statistics",
+        x_label="Data Value",
+        y_label="CDF",
+    )

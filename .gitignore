@@ -19,5 +19,5 @@ Thumbs.db
 
 # Test
 .pytest_cache/
-*.xlsx  # 测试生成的 Excel
-!tests/fixtures/*.xlsx
+*.xlsx
+!tests/fixtures/sample.xlsx
