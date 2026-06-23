@@ -239,6 +239,8 @@ def test_pipeline_end_to_end():
         chart_width=18,
         chart_height=10,
         marker_size=6,
+        x_scale="log",
+        y_scale="log",
     )
     assert output == OUTPUT_XLSX
     assert OUTPUT_XLSX.exists()
@@ -311,3 +313,7 @@ def test_pipeline_no_limit():
     chart = wb["Vth"]._charts[0]
     # 3 组，无 limit
     assert len(chart.series) == 3
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

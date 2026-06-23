@@ -476,7 +476,7 @@ def add_excel_chart(
     show_limit: bool = True,
     chart_width: float = 20,
     chart_height: float = 12,
-    auto_axis: bool = False,
+    auto_axis: bool = True,
     marker_size: int = 5,
     chart_title: str | None = None,
     x_label: str | None = None,
@@ -703,23 +703,22 @@ def add_excel_chart(
             if not x_vals.empty:
                 x_min = float(x_vals.min())
                 x_max = float(x_vals.max())
-                margin = (x_max - x_min) * 0.05 if x_max > x_min else 1.0
-                chart.x_axis.scaling.min = x_min - margin
-                chart.x_axis.scaling.max = x_max + margin
+                padding = (x_max - x_min) * 0.05 if x_max > x_min else 1.0
+                chart.x_axis.scaling.min = round(x_min - padding, 4)
+                chart.x_axis.scaling.max = round(x_max + padding, 4)
 
             if not y_vals.empty:
                 y_min = float(y_vals.min())
                 y_max = float(y_vals.max())
-                margin = (y_max - y_min) * 0.05 if y_max > y_min else 0.1
-                chart.y_axis.scaling.min = y_min - margin
-                chart.y_axis.scaling.max = y_max + margin
+                padding = (y_max - y_min) * 0.05 if y_max > y_min else 0.1
+                chart.y_axis.scaling.min = round(y_min - padding, 4)
+                chart.y_axis.scaling.max = round(y_max + padding, 4)
 
-        # 网格线（浅灰半透明） + 轴标题与刻度分离
+        # 网格线（浅灰）
         _add_gridlines(chart)
-        chart.x_axis.tickLblPos = "low"
-        chart.y_axis.tickLblPos = "low"
-        chart.x_axis.crosses = "autoZero"
-        chart.y_axis.crosses = "autoZero"
+        # 数值格式：一般小数点后 2-4 位即可
+        chart.x_axis.numFmt = '0.0###'
+        chart.y_axis.numFmt = '0.0###'
 
         # 添加图表到 sheet
         # 放在数据表右侧
@@ -765,7 +764,7 @@ def process(
     show_limit: bool = True,
     chart_width: float = 20,
     chart_height: float = 12,
-    auto_axis: bool = False,
+    auto_axis: bool = True,
     marker_size: int = 5,
     chart_title: str | None = None,
     x_label: str | None = None,
