@@ -936,29 +936,3 @@ def process(
     wb.save(output_path)
 
     return output_path
-
-
-if __name__ == "__main__":
-    # 测试运行
-    test_input = Path("test_data.xlsx")
-    test_output = Path("test_output.xlsx")
-    process(
-        input_path=test_input,
-        id_col="id",
-        group_col="group",
-        data_cols=["Vth", "BV"],
-        output_path=test_output,
-        limit_map={r"G1": 3.5},
-        x_axis="data",
-        y_axis="CDF",
-        x_scale="linear",
-        y_scale="linear",
-        show_limit=True,
-        chart_width=20,
-        chart_height=12,
-        auto_axis=False,
-        marker_size=5,
-        chart_title="Reliability Statistics",
-        x_label="Data Value",
-        y_label="CDF",
-    )

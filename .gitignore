@@ -20,4 +20,3 @@ Thumbs.db
 # Test
 .pytest_cache/
 *.xlsx
-!tests/fixtures/sample.xlsx
