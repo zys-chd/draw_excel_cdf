@@ -81,7 +81,7 @@ SUMMARY_HEADERS = [
     "Weibull η",
     "拟合 R²",
     "Limit",
-    "limit处 CDF(%)",
+    "limit处 CDF",
 ]
 
 # Header style
@@ -277,7 +277,7 @@ def build_summary(
     构建统计汇总 DataFrame。
 
     返回列: 测试项, 总模块数, Group, 均值, 标准差, 25%分位, 75%分位, 中位数,
-            最小值, 最大值, 变异系数(CV%), Weibull β, Weibull η, 拟合 R², limit处 CDF(%)
+            最小值, 最大值, 变异系数(CV%), Weibull β, Weibull η, 拟合 R², Limit, limit处 CDF
     """
     import numpy as np
 
@@ -301,7 +301,7 @@ def build_summary(
             cdf_at_limit = None
             if beta is not None and eta is not None and limit_val is not None:
                 try:
-                    cdf_at_limit = (1 - np.exp(-((limit_val / eta) ** beta))) * 100
+                    cdf_at_limit = 1 - np.exp(-((limit_val / eta) ** beta))
                 except (OverflowError, ZeroDivisionError):
                     cdf_at_limit = None
 
@@ -327,7 +327,7 @@ def build_summary(
                     "Weibull η": eta,
                     "拟合 R²": r2,
                     "Limit": limit_val,
-                    "limit处 CDF(%)": cdf_at_limit,
+                    "limit处 CDF": cdf_at_limit,
                 }
             )
 
