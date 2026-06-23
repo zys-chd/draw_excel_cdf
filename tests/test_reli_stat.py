@@ -15,6 +15,7 @@ from reli_stat import (
     median_rank,
     weibull_transform,
     build_summary,
+    process,
 )
 
 
@@ -203,3 +204,101 @@ def test_build_summary():
     assert list(summary["测试项"]) == ["Vth", "Vth"]
     assert summary.iloc[0]["总模块数"] == 3
     assert round(summary.iloc[0]["均值"], 1) == 3.0
+
+
+# ── 集成测试：端到端 pipeline ──────────────────
+
+FIXTURES = Path(__file__).parent / "fixtures"
+SAMPLE_XLSX = FIXTURES / "sample.xlsx"
+OUTPUT_XLSX = FIXTURES / "output.xlsx"
+
+
+def test_pipeline_end_to_end():
+    """完整流水线：读 sample.xlsx → 计算 → 写 Excel → 验证输出。
+
+    每次运行刷新 output.xlsx，可用于直接打开检查。"""
+    import openpyxl
+
+    output = process(
+        input_path=SAMPLE_XLSX,
+        id_col="样品编号",
+        group_col="批次",
+        data_cols=["Vth", "BVdss", "Rds_on"],
+        output_path=OUTPUT_XLSX,
+        limit_map={r"Vth": 3.0, r"BVdss": 660, r"Rds_on": 2.0},
+        x_axis="data",
+        y_axis="CDF",
+        show_limit=True,
+        chart_width=18,
+        chart_height=10,
+        marker_size=6,
+    )
+    assert output == OUTPUT_XLSX
+    assert OUTPUT_XLSX.exists()
+
+    wb = openpyxl.load_workbook(OUTPUT_XLSX)
+
+    # --- 验证 sheet 结构 ---
+    assert wb.sheetnames == ["统计汇总", "Vth", "BVdss", "Rds_on"]
+
+    # 统计汇总
+    ws = wb["统计汇总"]
+    assert ws.cell(1, 1).value == "测试项"
+    # 9 行统计数据 (3参数 × 3组)
+    summary_rows = ws.max_row - 1 - 24 - 1  # 总行 - 统计表头 - 原始数据(24行+表头+分隔=
+    # 更直接：统计数据行数 = 3参数 × 3组 = 9
+    assert ws.cell(2, 1).value == "Vth"
+
+    # 原始数据表头在统计数据后面
+    # 统计数据: 1 header + 9 rows = 10，空行=11，原始表头=12
+    assert ws.cell(12, 1).value == "样品编号"
+
+    # --- 验证数据 sheet 有图表和数据 ---
+    for sheet_name in ["Vth", "BVdss", "Rds_on"]:
+        ws = wb[sheet_name]
+        assert ws.max_row >= 2  # 有数据行
+        assert len(ws._charts) == 1  # 每个 sheet 一个散点图
+
+        chart = ws._charts[0]
+        # 3 组 + limit 参考线
+        assert len(chart.series) >= 3
+
+    # --- 验证 CDF 值范围 (0, 1] ---
+    ws_vth = wb["Vth"]
+    cdf_values = []
+    for r in range(2, ws_vth.max_row + 1):
+        val = ws_vth.cell(r, 4).value  # CDF 列
+        if isinstance(val, (int, float)):
+            cdf_values.append(val)
+    # 只要 CDF 都在 (0, 1] 且每组内单调（按 group + data 排序后验证）
+    assert len(cdf_values) > 0
+    assert all(0 < v <= 1 for v in cdf_values)
+
+    # 按组验证 CDF 组内单调
+    rows = []
+    for r in range(2, ws_vth.max_row + 1):
+        g = ws_vth.cell(r, 2).value  # group 列
+        d = ws_vth.cell(r, 3).value  # data 列
+        c = ws_vth.cell(r, 4).value  # CDF 列
+        if all(isinstance(x, (int, float)) for x in (d, c)):
+            rows.append((g, d, c))
+
+    for grp in set(g for g, _, _ in rows):
+        grp_cdf = [c for g, _, c in sorted(
+            [(g, d, c) for g, d, c in rows if g == grp], key=lambda x: x[1]
+        )]
+        assert all(grp_cdf[i] <= grp_cdf[i + 1] for i in range(len(grp_cdf) - 1)), \
+            f"CDF not monotonic within group {grp}"
+
+
+def test_pipeline_no_limit():
+    """不传 limit_map 时仍正常运行。"""
+    output = process(
+        input_path=SAMPLE_XLSX,
+        id_col="样品编号",
+        group_col="批次",
+        data_cols=["Vth"],
+        output_path=OUTPUT_XLSX,
+        show_limit=False,
+    )
+    assert OUTPUT_XLSX.exists()
